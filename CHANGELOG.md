@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.0.2 - 2026-09-28
+
+Hardening complementar após auditoria da branch antiga:
+
+- mantém a renderização systemd já adotada na `main` e completa o `sudoers` para os três serviços gerenciados;
+- torna `aprs-update` e o instalador legado de hooks independentes de `/home/aprs/aprs-dashboard`;
+- evita que o atualizador sobrescreva unidades systemd já renderizadas para instalações com caminhos personalizados;
+- uniformiza os nomes completos `.service` nas operações systemd;
+- troca o timezone do arquivo de exemplo para `UTC`;
+- adiciona auditoria genérica contra SSID de desenvolvimento, passcodes APRS-IS literais, coordenadas Direwolf literais, tokens e chaves privadas;
+- remove do próprio CI os valores privados que anteriormente eram usados como padrões literais de bloqueio.
+
 ## 1.0.1 - 2026-09-28
 
 Hardening pós-publicação:
