@@ -38,7 +38,7 @@ jobs:
 
           # PP5CI é permitido apenas como crédito. Bloqueamos dados da estação
           # original e credenciais/segredos conhecidos no pacote público.
-          if grep -R -n -E 'PP5CI-[0-9]{1,2}|24561|26\\.27166|48\\.87666' \
+          if grep -R -n -E 'PP5CI-[0-9]{1,2}|24561|26\.27166|48\.87666' \
             --exclude-dir=.git --exclude=ci.yml .; then
             echo "Dados específicos da estação original encontrados no pacote público."
             exit 1
