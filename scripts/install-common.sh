@@ -452,7 +452,7 @@ install_systemd(){
   local systemctl_bin
   systemctl_bin="$(command -v systemctl)"
   cat >/etc/sudoers.d/aprs-dashboard <<EOF
-$APRS_USER ALL=(root) NOPASSWD: $systemctl_bin restart direwolf
+$APRS_USER ALL=(root) NOPASSWD: $systemctl_bin restart direwolf.service, $systemctl_bin restart aprs-dashboard.service, $systemctl_bin restart aprs-hardware-watchdog.service
 EOF
   chmod 0440 /etc/sudoers.d/aprs-dashboard
   visudo -cf /etc/sudoers.d/aprs-dashboard >/dev/null

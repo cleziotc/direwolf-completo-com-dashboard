@@ -14,7 +14,7 @@ jobs:
 
       - name: Python syntax
         run: |
-          python3 -m py_compile app.py database.py dashboard_extensions.py audio_control.py station_config.py offline_maps.py scripts/direwolf-hardware-watchdog.py
+          python3 -m py_compile app.py database.py dashboard_extensions.py audio_control.py station_config.py offline_maps.py scripts/direwolf-hardware-watchdog.py scripts/check-public-package.py
 
       - name: Bash syntax
         run: |
@@ -35,17 +35,13 @@ jobs:
           grep -q "Daniel, PP5BK" README.md
           grep -q "PTT GPIOD" direwolf.conf.example
           grep -q "render_systemd_unit" scripts/install-common.sh
+          grep -q "restart aprs-dashboard.service" scripts/install-common.sh
+          grep -q "restart aprs-hardware-watchdog.service" scripts/install-common.sh
+          grep -q 'DEFAULT_REPO=' scripts/aprs-update.sh
 
-          # PP5CI é permitido apenas como crédito. Bloqueamos dados da estação
-          # original e credenciais/segredos conhecidos no pacote público.
-          if grep -R -n -E 'PP5CI-[0-9]{1,2}|24561|26\.27166|48\.87666' \
-            --exclude-dir=.git --exclude=ci.yml .; then
-            echo "Dados específicos da estação original encontrados no pacote público."
+          if grep -q '/home/aprs/aprs-dashboard' scripts/aprs-update.sh scripts/install-v02-hooks.sh; then
+            echo "Caminho fixo legado encontrado em script que deve ser portável."
             exit 1
           fi
 
-          if grep -R -n -E '(github_pat_[A-Za-z0-9_]{20,}|gh[pousr]_[A-Za-z0-9_]{20,}|sk-[A-Za-z0-9]{20,})' \
-            --exclude-dir=.git .; then
-            echo "Possível segredo/token encontrado no repositório."
-            exit 1
-          fi
+          python3 scripts/check-public-package.py
