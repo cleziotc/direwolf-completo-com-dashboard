@@ -2,14 +2,13 @@
 
 ## Cadeia básica
 
-Uma estação típica usa:
+Uma estação típica utiliza:
 
 - transceptor VHF/UHF;
-- interface de áudio USB;
-- saída de áudio do rádio para entrada da placa;
-- saída da placa para entrada de modulação do rádio, quando TX é usado;
-- conversor USB/serial ou interface equivalente para PTT;
-- computador Ubuntu ou Raspberry Pi.
+- interface de áudio compatível com ALSA;
+- computador Ubuntu ou Raspberry Pi;
+- interface elétrica adequada para PTT;
+- rede para APRS-IS, quando iGate estiver habilitado.
 
 ## Áudio USB
 
@@ -22,74 +21,90 @@ aplay -l
 cat /proc/asound/cards
 ```
 
-O `ADEVICE` deve apontar para o dispositivo correto, por exemplo:
+Exemplo de `ADEVICE`:
 
 ```text
 ADEVICE plughw:0,0
 ```
 
-O dashboard também registra VID/PID da placa quando o instalador consegue descobrir esses valores no sysfs.
+O instalador registra card/device e, quando possível, VID/PID USB.
 
 ## Nível de RX
 
-O VU RX do dashboard utiliza o valor relativo publicado pelo Direwolf. Ele **não é um medidor calibrado em dBFS**.
+O VU RX usa o valor relativo publicado pelo Direwolf. Ele **não é um medidor calibrado em dBFS**.
 
-O objetivo é facilitar:
+Serve para:
 
 - perceber ausência de áudio;
-- identificar nível excessivamente baixo;
-- comparar alterações;
-- observar atividade do canal.
+- comparar ajustes;
+- observar atividade;
+- identificar níveis claramente inadequados.
 
-Faça o ajuste final conforme a documentação do Direwolf e a qualidade real de decodificação.
+O ajuste final deve priorizar a qualidade de decodificação.
 
 ## VU TX
 
-O Direwolf não fornece ao dashboard a amplitude PCM real da transmissão. Portanto, o VU TX representa atividade de transmissão e não deve ser interpretado como medição absoluta de nível.
+O dashboard não recebe a amplitude PCM real da transmissão. O VU TX representa **atividade de TX**, não uma medição absoluta de modulação.
 
-## PTT via serial
+# PTT no Ubuntu/Linux
 
-O projeto suporta a diretiva padrão do Direwolf para linhas de controle serial.
-
-Exemplos:
+O caminho normal é serial DTR/RTS:
 
 ```text
-PTT /dev/ttyUSB0 DTR
-PTT /dev/ttyUSB0 RTS
-PTT /dev/ttyUSB0 -DTR
-PTT /dev/ttyUSB0 -RTS
+PTT /dev/serial/by-id/usb-... DTR
+PTT /dev/serial/by-id/usb-... RTS
+PTT /dev/serial/by-id/usb-... -DTR
+PTT /dev/serial/by-id/usb-... -RTS
 ```
 
-## Usar /dev/serial/by-id
-
-Para uma instalação permanente:
+Para instalações permanentes:
 
 ```bash
 ls -l /dev/serial/by-id/
 ```
 
-Quando existir um nome persistente, prefira-o no lugar de `/dev/ttyUSB0`.
+Prefira `/dev/serial/by-id/...` a `/dev/ttyUSB0`.
 
-Assim, uma reconexão que faça o kernel trocar `ttyUSB0` por `ttyUSB1` não quebra a configuração.
+# PTT no Raspberry Pi
 
-## DTR/RTS e transistor
+O Raspberry possui GPIO nativo. O projeto utiliza libgpiod:
 
-Não conecte uma linha RS-232 clássica diretamente ao PTT sem entender os níveis elétricos envolvidos.
+```text
+PTT GPIOD /dev/gpiochip0 25
+```
 
-Em interfaces USB-TTL, DTR/RTS normalmente acionam um transistor, optoacoplador ou circuito de chaveamento apropriado.
+Lógica invertida:
 
-Verifique:
+```text
+PTT GPIOD /dev/gpiochip0 -25
+```
 
+Confira os chips:
+
+```bash
+gpioinfo
+ls -l /dev/gpiochip*
+```
+
+O chip pode variar conforme modelo/kernel.
+
+## Interface elétrica
+
+Não ligue DTR/RTS ou GPIO diretamente ao PTT do rádio sem conhecer os níveis envolvidos.
+
+Use um estágio apropriado de chaveamento e confira:
+
+- tensão;
+- corrente;
 - polaridade;
+- nível lógico;
 - isolamento;
 - terra;
-- corrente de PTT;
-- retorno de RF;
-- nível lógico do adaptador.
+- retorno de RF.
 
 ## EMI / RF
 
-Uma queda de serial acompanhada no host por mensagens como:
+Mensagens como:
 
 ```text
 USB disconnect
@@ -97,23 +112,30 @@ device descriptor read/64, error -71
 Device not responding to setup address
 ```
 
-acontece abaixo do Direwolf e deve ser investigada como problema de USB, alimentação, contato, cabo ou interferência eletromagnética.
+indicam falha abaixo do Direwolf.
+
+Investigue:
+
+- mau contato;
+- cabo USB;
+- porta USB;
+- alimentação;
+- EMI/RF;
+- loops de terra;
+- conversor;
+- controlador USB.
 
 Medidas úteis:
 
-- cabo USB curto;
+- cabo curto;
 - ferrites;
 - bom aterramento;
-- separar cabos RF e USB;
-- evitar loops de terra;
-- testar outra porta USB;
-- testar outro conversor;
-- testar com PTT desconectado do rádio;
-- comparar logs do host e da VM.
+- separação entre RF e USB;
+- outra porta;
+- outra interface;
+- teste com o fio de PTT desconectado do rádio.
 
 ## VM / passthrough
-
-Em virtualização, confirme a presença do dispositivo tanto no host quanto na VM.
 
 Host:
 
@@ -130,4 +152,12 @@ arecord -l
 dmesg -wT
 ```
 
-Se o host perde a enumeração física, alterar o Direwolf dentro da VM não corrige a causa.
+Se o host já perde o dispositivo físico, alterar o Direwolf dentro da VM não corrige a causa.
+
+## Watchdog
+
+No Ubuntu, o watchdog observa a serial quando uma diretiva PTT serial existe.
+
+No Raspberry, ele observa o `gpiochip` quando existe `PTT GPIOD`.
+
+Em RX-only, PTT não é requisito.
