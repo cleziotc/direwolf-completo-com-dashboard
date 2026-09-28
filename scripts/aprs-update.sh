@@ -2,10 +2,12 @@
 
 set -uo pipefail
 
-REPO="${APRS_DASHBOARD_DIR:-/home/aprs/aprs-dashboard}"
+SCRIPT_PATH="$(readlink -f "${BASH_SOURCE[0]}")"
+DEFAULT_REPO="$(cd "$(dirname "$SCRIPT_PATH")/.." && pwd)"
+REPO="${APRS_DASHBOARD_DIR:-$DEFAULT_REPO}"
 REMOTE="origin"
 BRANCH="main"
-SERVICE="aprs-dashboard"
+SERVICE="aprs-dashboard.service"
 PYTHON="$REPO/venv/bin/python"
 HEALTH_URL="http://127.0.0.1:8088/api/status"
 OVERVIEW_URL="http://127.0.0.1:8088/api/overview"
@@ -68,42 +70,6 @@ if "igate_mode" not in tx or "digipeater" not in tx:
     return 1
 }
 
-install_direwolf_watchdog() {
-    log "Instalando watchdog de hardware do Direwolf..."
-
-    if ! sudo mkdir -p /etc/systemd/system/direwolf.service.d; then
-        return 1
-    fi
-
-    if ! sudo install -m 0644 \
-        "$REPO/systemd/direwolf-recovery.conf" \
-        /etc/systemd/system/direwolf.service.d/recovery.conf; then
-        return 1
-    fi
-
-    if ! sudo install -m 0644 \
-        "$REPO/systemd/aprs-hardware-watchdog.service" \
-        /etc/systemd/system/aprs-hardware-watchdog.service; then
-        return 1
-    fi
-
-    if ! sudo systemctl daemon-reload; then
-        return 1
-    fi
-
-    sudo systemctl reset-failed direwolf.service >/dev/null 2>&1 || true
-
-    if ! sudo systemctl enable --now aprs-hardware-watchdog.service; then
-        return 1
-    fi
-
-    if ! sudo systemctl restart aprs-hardware-watchdog.service; then
-        return 1
-    fi
-
-    return 0
-}
-
 ensure_leaflet_assets() {
     mkdir -p static/vendor/leaflet
 
@@ -151,7 +117,7 @@ rollback() {
 }
 
 if [[ "${EUID}" -eq 0 ]]; then
-    echo "Execute este comando como usuario aprs, sem sudo."
+    echo "Execute este comando como o usuario de servico APRS, sem sudo."
     exit 1
 fi
 
@@ -191,11 +157,6 @@ if [[ "$TARGET_COMMIT" == "$OLD_COMMIT" ]]; then
     if ! ensure_leaflet_assets; then
         log "AVISO: nao foi possivel preparar Leaflet local. O dashboard usara o fallback online."
     fi
-    if [[ -f "$REPO/scripts/direwolf-hardware-watchdog.py" ]]; then
-        if ! install_direwolf_watchdog; then
-            log "AVISO: nao foi possivel reparar o watchdog de hardware do Direwolf."
-        fi
-    fi
     exit 0
 fi
 
@@ -233,7 +194,7 @@ if ! sudo systemctl restart "$SERVICE"; then
     rollback "systemd nao conseguiu reiniciar o dashboard"
 fi
 
-if ! sudo systemctl is-active --quiet "$SERVICE"; then
+if ! systemctl is-active --quiet "$SERVICE"; then
     rollback "servico ficou inativo apos o restart"
 fi
 
@@ -243,17 +204,21 @@ if ! health_check; then
     rollback "API /api/status nao respondeu corretamente"
 fi
 
-if ! install_direwolf_watchdog; then
-    log "ERRO: dashboard atualizado, mas nao foi possivel instalar o watchdog do Direwolf."
-    exit 1
-fi
+if systemctl cat aprs-hardware-watchdog.service >/dev/null 2>&1; then
+    if ! sudo systemctl restart aprs-hardware-watchdog.service; then
+        log "ERRO: dashboard atualizado, mas o watchdog de hardware nao reiniciou."
+        exit 1
+    fi
 
-if ! sudo systemctl is-active --quiet aprs-hardware-watchdog.service; then
-    log "ERRO: dashboard atualizado, mas o watchdog de hardware ficou inativo."
-    exit 1
-fi
+    if ! systemctl is-active --quiet aprs-hardware-watchdog.service; then
+        log "ERRO: dashboard atualizado, mas o watchdog de hardware ficou inativo."
+        exit 1
+    fi
 
-log "Watchdog de hardware ativo."
+    log "Watchdog de hardware reiniciado e ativo."
+else
+    log "AVISO: aprs-hardware-watchdog.service nao esta instalado; execute novamente o instalador para instalar os servicos atuais."
+fi
 
 NEW_COMMIT="$(git rev-parse --short HEAD)"
 OLD_SHORT="$(git rev-parse --short "$OLD_COMMIT")"
