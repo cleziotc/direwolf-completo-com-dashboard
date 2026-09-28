@@ -312,18 +312,35 @@ def main():
             "serial_port"
         )
 
-        audio_ok = audio_present(
+        audio_required = bool(
             audio_device
         )
 
-        serial_ok = serial_present(
+        serial_required = bool(
             serial_port
+        )
+
+        audio_ok = (
+            audio_present(
+                audio_device
+            )
+            if audio_required
+            else True
+        )
+
+        serial_ok = (
+            serial_present(
+                serial_port
+            )
+            if serial_required
+            else True
         )
 
         now = time.monotonic()
 
         if (
-            previous_audio is not None
+            audio_required
+            and previous_audio is not None
             and previous_audio != audio_ok
         ):
 
@@ -339,7 +356,8 @@ def main():
             )
 
         if (
-            previous_serial is not None
+            serial_required
+            and previous_serial is not None
             and previous_serial != serial_ok
         ):
 
