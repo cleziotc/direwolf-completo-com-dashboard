@@ -44,11 +44,15 @@ def read_config():
 
         return {
             "audio_device": None,
-            "serial_port": None,
+            "ptt_mode": "none",
+            "ptt_device": None,
+            "ptt_line": None,
         }
 
     audio_device = None
-    serial_port = None
+    ptt_mode = "none"
+    ptt_device = None
+    ptt_line = None
 
     for raw in lines:
 
@@ -75,19 +79,39 @@ def read_config():
                 audio_device = parts[1]
 
         elif (
-            serial_port is None
+            ptt_mode == "none"
             and upper.startswith("PTT ")
         ):
 
             parts = line.split()
 
-            if len(parts) >= 2:
+            if (
+                len(parts) >= 4
+                and parts[1].upper() == "GPIOD"
+            ):
 
-                serial_port = parts[1]
+                ptt_mode = "gpiod"
+                ptt_device = parts[2]
+
+                if not ptt_device.startswith("/"):
+
+                    ptt_device = (
+                        "/dev/"
+                        + ptt_device
+                    )
+
+                ptt_line = parts[3]
+
+            elif len(parts) >= 3:
+
+                ptt_mode = "serial"
+                ptt_device = parts[1]
 
     return {
         "audio_device": audio_device,
-        "serial_port": serial_port,
+        "ptt_mode": ptt_mode,
+        "ptt_device": ptt_device,
+        "ptt_line": ptt_line,
     }
 
 
@@ -177,23 +201,35 @@ def audio_present(
     )
 
 
-def serial_present(
-    value
+def ptt_present(
+    mode,
+    device
 ):
 
-    if not value:
+    if mode == "none":
+
+        return True
+
+    if not device:
 
         return False
 
-    try:
+    if mode in (
+        "serial",
+        "gpiod",
+    ):
 
-        return Path(
-            value
-        ).exists()
+        try:
 
-    except Exception:
+            return Path(
+                device
+            ).exists()
 
-        return False
+        except Exception:
+
+            return False
+
+    return False
 
 
 def service_active():
@@ -297,7 +333,7 @@ def main():
     )
 
     previous_audio = None
-    previous_serial = None
+    previous_ptt = None
     last_restart = 0.0
 
     while True:
@@ -308,16 +344,22 @@ def main():
             "audio_device"
         )
 
-        serial_port = config.get(
-            "serial_port"
+        ptt_mode = config.get(
+            "ptt_mode",
+            "none"
+        )
+
+        ptt_device = config.get(
+            "ptt_device"
         )
 
         audio_required = bool(
             audio_device
         )
 
-        serial_required = bool(
-            serial_port
+        ptt_required = (
+            ptt_mode
+            != "none"
         )
 
         audio_ok = (
@@ -328,11 +370,12 @@ def main():
             else True
         )
 
-        serial_ok = (
-            serial_present(
-                serial_port
+        ptt_ok = (
+            ptt_present(
+                ptt_mode,
+                ptt_device
             )
-            if serial_required
+            if ptt_required
             else True
         )
 
@@ -356,19 +399,27 @@ def main():
             )
 
         if (
-            serial_required
-            and previous_serial is not None
-            and previous_serial != serial_ok
+            ptt_required
+            and previous_ptt is not None
+            and previous_ptt != ptt_ok
         ):
+
+            label = (
+                "GPIO/PTT"
+                if ptt_mode == "gpiod"
+                else "Serial/PTT"
+            )
 
             log(
                 (
-                    "Serial/PTT reconectada: "
-                    if serial_ok
-                    else "Serial/PTT desconectada: "
+                    label
+                    + " reconectado: "
+                    if ptt_ok
+                    else label
+                    + " desconectado: "
                 )
                 + str(
-                    serial_port
+                    ptt_device
                 )
             )
 
@@ -377,14 +428,14 @@ def main():
             and audio_ok
         )
 
-        serial_reconnected = (
-            previous_serial is False
-            and serial_ok
+        ptt_reconnected = (
+            previous_ptt is False
+            and ptt_ok
         )
 
-        both_ready = (
+        all_ready = (
             audio_ok
-            and serial_ok
+            and ptt_ok
         )
 
         cooldown_ok = (
@@ -394,11 +445,11 @@ def main():
         )
 
         if (
-            both_ready
+            all_ready
             and cooldown_ok
             and (
                 audio_reconnected
-                or serial_reconnected
+                or ptt_reconnected
             )
         ):
 
@@ -415,13 +466,13 @@ def main():
                 )
 
         elif (
-            both_ready
+            all_ready
             and cooldown_ok
             and not service_active()
         ):
 
             if restart_direwolf(
-                "hardware disponível e serviço inativo"
+                "serviço inativo com hardware disponível"
             ):
 
                 last_restart = (
@@ -429,7 +480,7 @@ def main():
                 )
 
         previous_audio = audio_ok
-        previous_serial = serial_ok
+        previous_ptt = ptt_ok
 
         time.sleep(
             POLL_SECONDS
