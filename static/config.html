@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Estação APRS • Configuração</title>
+<link rel="stylesheet" href="/static/vendor/leaflet/leaflet.css" onerror="this.onerror=null;this.href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'">
+<style>
+:root{
+  --bg:#07111e;--panel:#0b1929;--panel2:#081522;--line:#203650;--line2:#14283e;
+  --text:#eef6ff;--muted:#7f9bbb;--muted2:#58718f;--cyan:#22d3ee;--green:#2ee88a;
+  --blue:#4fa3ff;--orange:#ff9f2f;--red:#ff5364;--purple:#8b7cff;--yellow:#f5d74f;
+}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%;background:var(--bg);color:var(--text);font-family:Inter,Segoe UI,Arial,sans-serif}
+body{min-width:320px}.shell{max-width:1920px;margin:auto;padding:18px}button,input,select{font:inherit}
+.header{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:16px}
+.brand{display:flex;align-items:center;gap:12px}.brand-logo{width:46px;height:46px;color:#27a9ff;filter:drop-shadow(0 0 10px #27a9ff22)}
+.brand-title{font-size:23px;font-weight:800}.brand-sub{color:#96afca;font-size:12px;margin-top:3px}
+.nav{display:flex;gap:6px;margin-top:7px}.nav a{height:26px;display:inline-flex;align-items:center;padding:0 10px;border:1px solid #29425e;border-radius:7px;background:#0a1724;color:#829dbc;text-decoration:none;font-size:9px;font-weight:800}.nav a.active{color:#67caff;border-color:#276b99;background:#0a2235}
+.tag{display:flex;gap:7px;align-items:center;border:1px solid #24516d;border-radius:9px;background:#0a1c2a;padding:8px 11px;color:#8fcaef;font-size:10px;font-weight:800}.tag i{width:8px;height:8px;border-radius:50%;background:#2ee88a;box-shadow:0 0 8px #2ee88a}
+
+.audio{position:relative;display:grid;grid-template-columns:1fr 1fr 130px;gap:12px;border:1px solid #1f567a;background:linear-gradient(180deg,#092033,#061522);border-radius:11px;padding:14px 12px 10px;margin-bottom:12px}
+.audio:before{content:"ÁUDIO / NÍVEIS";position:absolute;top:-9px;left:14px;padding:1px 8px;border:1px solid #1d5c82;border-radius:999px;background:#09213a;color:#a9d9fb;font-size:9px;font-weight:800}
+.channel{padding:4px 10px;border-right:1px solid #23425a}.channel.tx{border-right:0}.vu-head{display:flex;justify-content:space-between;align-items:center}.vu-head strong{font-size:18px}.channel.rx strong{color:#43e6e0}.channel.tx strong{color:#ffac35}.vu-read{font:700 9px Consolas;color:#6f8ba8}
+.scale{display:grid;grid-template-columns:repeat(7,1fr);margin:2px 1px 4px;color:#617c98;font:700 7px Consolas;text-align:center}
+.track{height:19px;display:grid;grid-template-columns:repeat(32,1fr);gap:2px;padding:3px;border:1px solid #183a55;border-radius:5px;background:#05131f}.seg{background:#143047;opacity:.45;border-radius:1px}.track.rx .seg.active{background:#36e4b8;opacity:1;box-shadow:0 0 5px #36e4b877}.track.tx .seg.active{background:#ff9f2f;opacity:1;box-shadow:0 0 5px #ff9f2f88}.seg.mid.active{background:#ffd05a!important}.seg.hot.active{background:#ffe98a!important}
+.gain{display:grid;grid-template-columns:72px 1fr 46px;gap:8px;align-items:center;margin-top:8px;color:#95acc6;font-size:9px}.gain input{width:100%;accent-color:#35d4dc}.channel.tx .gain input{accent-color:#ff9f2f}.gain b{text-align:right;font-size:10px}
+.activity{display:grid;grid-template-columns:1fr 1fr;gap:8px}.lamp-card{display:flex;flex-direction:column;align-items:center;justify-content:center;border:1px solid #244159;border-radius:9px;background:#081724;color:#7189a2}.lamp{width:24px;height:24px;border-radius:50%;background:#314459;border:2px solid #587087;margin-bottom:4px}.lamp-card.on.rx{color:#60f3ad;border-color:#1b6547;background:#08231d}.lamp-card.on.rx .lamp{background:#2ee88a;border-color:#7affbd;box-shadow:0 0 13px #2ee88a}.lamp-card.on.tx{color:#ffc264;border-color:#80521d;background:#281a0a}.lamp-card.on.tx .lamp{background:#ff9f2f;border-color:#ffd07a;box-shadow:0 0 13px #ff9f2f}.lamp-card strong{font-size:11px}.lamp-card small{font-size:8px}
+
+.layout{display:grid;grid-template-columns:1.4fr .6fr;gap:12px}.left{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.panel{border:1px solid var(--line);border-radius:9px;background:linear-gradient(180deg,#0b1929,#081522);overflow:hidden;min-width:0}
+.panel-head{min-height:44px;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:0 13px;border-bottom:1px solid var(--line2);background:#0d1d2e}
+.panel-title{font-size:13px;font-weight:800}.panel-sub{font-size:9px;color:#6e89a7}.body{padding:12px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px 12px}.field.full{grid-column:1/-1}
+label{display:block;margin-bottom:5px;color:#83a0bf;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.2px}
+.cfg{width:100%;height:34px;border:1px solid #28435f;border-radius:7px;background:#07131f;color:#e5f1fd;padding:0 10px;font-size:11px;outline:none}.cfg:focus{border-color:#3f86b9;box-shadow:0 0 0 2px #3f86b91a}
+select.cfg{cursor:pointer}.unit-row{display:grid;grid-template-columns:1fr auto}.unit-row .cfg{border-radius:7px 0 0 7px}.unit{display:flex;align-items:center;border:1px solid #28435f;border-left:0;border-radius:0 7px 7px 0;padding:0 9px;background:#0d1d2e;color:#6f8baa;font-size:9px}
+.help{margin-top:5px;color:#6884a2;font-size:8.7px;line-height:1.4}.help strong{color:#9bb8d5}.help.warn{color:#cba46c}
+.section-actions{grid-column:1/-1;display:flex;align-items:center;justify-content:flex-end;gap:8px;margin-top:2px;padding-top:10px;border-top:1px solid #14283e}
+.save-btn{height:32px;border:1px solid #236e95;border-radius:7px;background:linear-gradient(180deg,#0d3a55,#0a2a42);color:#bce8ff;padding:0 14px;font-size:10px;font-weight:850;cursor:pointer}.save-btn:hover{background:#104665}.save-btn:disabled{opacity:.55;cursor:wait}
+.secondary-btn{height:32px;border:1px solid #29425e;border-radius:7px;background:#0a1724;color:#9eb3ca;padding:0 12px;font-size:10px;font-weight:750;cursor:pointer}
+.range-line{display:grid;grid-template-columns:minmax(100px,1fr) 92px;gap:9px;align-items:center}.range-line input[type=range]{width:100%;accent-color:#36d7d7}
+.filter-preview{grid-column:1/-1;border:1px solid #1b3d56;border-radius:7px;background:#061723;padding:9px 10px;color:#8bb6d3;font:9px Consolas,monospace}
+.toggle-line{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 10px;border:1px solid #17304a;border-radius:7px;background:#091724}
+.toggle-copy{min-width:0}.toggle-copy strong{display:block;font-size:10px;color:#b7cadf}.toggle-copy small{display:block;color:#6f89a7;font-size:8.5px;margin-top:2px}
+.switch{position:relative;width:42px;height:22px;flex:0 0 auto}.switch input{opacity:0;width:0;height:0}.slider{position:absolute;inset:0;border-radius:999px;background:#20354a;border:1px solid #38536e;cursor:pointer;transition:.2s}.slider:before{content:"";position:absolute;width:16px;height:16px;left:2px;top:2px;border-radius:50%;background:#8aa0b7;transition:.2s}.switch input:checked+.slider{background:#0c4c36;border-color:#23885f;box-shadow:0 0 8px #2ee88a22}.switch input:checked+.slider:before{transform:translateX(20px);background:#50f0a3}
+.checkline{display:flex;align-items:center;gap:7px;color:#a8bdd3;font-size:9px}.checkline input{accent-color:#ff9f2f}
+.info-chip{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border:1px solid #355877;border-radius:50%;color:#7aa8ca;font-size:9px;font-weight:900;margin-left:4px;cursor:help}
+
+.map-card{grid-column:1/-1;border:1px solid #1c3b53;border-radius:9px;overflow:hidden;background:#071522}
+.map-toolbar{height:38px;display:flex;align-items:center;justify-content:space-between;padding:0 10px;border-bottom:1px solid #17304a;background:#0a1c2c}.map-toolbar span{font-size:9px;color:#8fa9c5}.map-toolbar select{height:26px;border:1px solid #2d4a66;border-radius:6px;background:#081624;color:#c5d6e8;font-size:9px}
+#station_map{height:270px}.leaflet-control-zoom a{background:#0b1929!important;color:#dcecff!important;border-color:#29425e!important}.leaflet-control-attribution{background:#07111ecc!important;color:#7890aa!important}.leaflet-control-attribution a{color:#7fb8e9!important}
+.offline-card{grid-column:1/-1;border:1px solid #20506c;border-radius:9px;background:linear-gradient(180deg,#092033,#071521);overflow:hidden}
+.offline-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 11px;border-bottom:1px solid #17364e}.offline-head strong{font-size:11px}.offline-head span{color:#6e89a7;font-size:8.5px}
+.offline-controls{display:grid;grid-template-columns:150px 1fr 1fr;gap:9px;padding:10px}.offline-control label{margin-bottom:4px}
+.offline-range{display:grid;grid-template-columns:minmax(0,1fr) 92px;gap:8px;align-items:center}.offline-range input[type=range]{width:100%;accent-color:#22d3ee}
+.offline-value-box{height:34px;display:grid;grid-template-columns:minmax(0,1fr) 34px;border:1px solid #28435f;border-radius:7px;background:#07131f;overflow:hidden}
+.offline-value-box input{width:100%;min-width:0;border:0;background:transparent;color:#eef6ff;text-align:right;padding:0 8px;outline:none;font-size:11px;font-weight:800}
+.offline-value-box span{display:flex;align-items:center;justify-content:center;border-left:1px solid #28435f;background:#0d1d2e;color:#7f9bbb;font-size:9px}
+.offline-radius-label{background:#09283a;color:#aef5d1;border:1px solid #2f8b69;border-radius:999px;padding:3px 7px;font:800 10px/1 Consolas,monospace;box-shadow:0 0 12px #2ee88a44;white-space:nowrap}
+.offline-center-label{color:#8eabc8;font:700 8px/1.2 Consolas,monospace}
+.offline-map-wrap{grid-column:1/-1;border:1px solid #183a53;border-radius:8px;overflow:hidden}.offline-map-toolbar{height:34px;display:flex;align-items:center;justify-content:space-between;padding:0 9px;background:#081928;border-bottom:1px solid #17304a;color:#7f9ab7;font-size:8.5px}
+#offline_map{height:220px}
+.offline-summary{grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr;gap:8px}.offline-package{border:1px solid #17364e;border-radius:7px;background:#071522;padding:8px 9px}.offline-package strong{display:block;font-size:9.5px;color:#bdd2e7}.offline-package small{display:block;margin-top:3px;color:#67839f;font-size:8px;line-height:1.4}
+.offline-progress{grid-column:1/-1;border:1px solid #17364e;border-radius:7px;background:#071522;padding:8px 9px}.offline-progress-top{display:flex;justify-content:space-between;color:#86a2bf;font-size:8.5px}.offline-progress-bar{height:7px;background:#10283d;border-radius:999px;overflow:hidden;margin-top:6px}.offline-progress-bar span{display:block;height:100%;width:0;background:linear-gradient(90deg,#22d3ee,#2ee88a);border-radius:999px;transition:width .2s}
+.offline-actions{grid-column:1/-1;display:flex;gap:8px;justify-content:flex-end;align-items:center;padding-top:2px}.offline-estimate{margin-right:auto;color:#86a3bf;font-size:8.5px}.danger-btn{height:32px;border:1px solid #6f3040;border-radius:7px;background:#24121a;color:#ff9ba6;padding:0 12px;font-size:9px;font-weight:800;cursor:pointer}
+.cfg-pin{width:30px;height:30px;border-radius:50% 50% 50% 0;background:#23c7d9;border:3px solid #e9fbff;transform:rotate(-45deg);box-shadow:0 0 18px #22d3ee99}.cfg-pin:after{content:"";position:absolute;width:8px;height:8px;border-radius:50%;background:#07111e;left:8px;top:8px}
+
+.symbol-select{height:54px;width:100%;border:1px solid #28435f;border-radius:8px;background:#07131f;color:#e6f2ff;display:flex;align-items:center;gap:10px;padding:0 11px;cursor:pointer;text-align:left}.symbol-select:hover{border-color:#3e799f}.symbol-ico{width:34px;height:34px;border:1px solid #326180;border-radius:8px;background:#0b2235;display:flex;align-items:center;justify-content:center;font-size:19px}.symbol-copy strong{display:block;font-size:11px}.symbol-copy small{display:block;color:#6f8ba8;font-size:8.5px;margin-top:2px}
+.modal{position:fixed;inset:0;z-index:5000;background:#020914cc;display:none;align-items:center;justify-content:center;padding:18px}.modal.show{display:flex}.modal-card{width:min(760px,96vw);border:1px solid #2a5878;border-radius:12px;background:#091725;box-shadow:0 20px 70px #000b;overflow:hidden}.modal-head{height:48px;display:flex;align-items:center;justify-content:space-between;padding:0 14px;border-bottom:1px solid #17304a}.modal-head strong{font-size:13px}.modal-close{border:0;background:transparent;color:#8da8c3;font-size:20px;cursor:pointer}.symbol-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;padding:14px}.symbol-option{border:1px solid #1e3a52;border-radius:9px;background:#071522;color:#dceafa;padding:10px;display:flex;align-items:center;gap:10px;cursor:pointer;text-align:left}.symbol-option:hover,.symbol-option.selected{border-color:#31a3d2;background:#0a2639}.symbol-option .symbol-ico{flex:0 0 36px}.symbol-option strong{display:block;font-size:10px}.symbol-option small{display:block;color:#718da9;font-size:8px;margin-top:2px}
+
+.txdelay-wrap{grid-column:1/-1;border:1px solid #17304a;border-radius:8px;background:#081724;padding:10px}.txdelay-top{display:flex;justify-content:space-between;align-items:center}.txdelay-top strong{font-size:10px;color:#b9cee3}.txdelay-value{color:#ffb552;font:800 12px Consolas}.txdelay-wrap input{width:100%;margin-top:8px;accent-color:#ff9f2f}.ticks{display:flex;justify-content:space-between;color:#587490;font-size:7px;margin-top:1px}
+
+.summary{position:sticky;top:12px}.hero{padding:16px;border-bottom:1px solid #17304a;background:radial-gradient(circle at 85% 15%,#22d3ee14,transparent 34%),#0a1928}.call{font:900 25px Consolas}.meta{margin-top:5px;color:#819cba;font-size:10px}.status-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:13px}.status{border:1px solid #21415c;border-radius:7px;background:#081724;padding:8px 9px;font-size:9px;color:#7f99b6}.status strong{display:block;margin-top:3px;color:#dce8f5;font-size:10px}.status.on strong{color:#4aefa1}.preview{padding:12px}.preview h4{margin:0 0 8px;font-size:10px;color:#b8cbe0}.code{max-height:430px;overflow:auto;border:1px solid #1b334a;border-radius:7px;background:#06111c;padding:10px;color:#9fc1df;font:9px/1.5 Consolas;white-space:pre-wrap;overflow-wrap:anywhere}
+.toast{position:fixed;right:18px;bottom:18px;z-index:6000;max-width:420px;padding:12px 14px;border:1px solid #27678c;border-radius:9px;background:#092035;color:#c8e9ff;box-shadow:0 12px 40px #0008;font-size:10px;line-height:1.4;transform:translateY(30px);opacity:0;pointer-events:none;transition:.22s}.toast.show{transform:none;opacity:1}.toast.ok{border-color:#28744f;color:#a9f5cc}.toast.warn{border-color:#8a6127;color:#ffd79b}.toast.bad{border-color:#823642;color:#ffb3bb}
+
+@media(max-width:1300px){.layout{grid-template-columns:1fr}.summary{position:static}}
+@media(max-width:850px){.header{flex-direction:column;align-items:flex-start}.audio{grid-template-columns:1fr 1fr}.activity{grid-column:1/-1}.left{grid-template-columns:1fr}.symbol-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:560px){.audio{grid-template-columns:1fr}.channel{border-right:0;border-bottom:1px solid #23425a}.channel.tx{border-bottom:0}.activity{grid-column:1}.grid{grid-template-columns:1fr}.symbol-grid{grid-template-columns:1fr}.range-line{grid-template-columns:1fr}.layout{display:block}}
+</style>
+</head>
+<body>
+<div class="shell">
+<header class="header">
+  <div class="brand">
+    <svg class="brand-logo" viewBox="0 0 64 64" fill="none"><path d="M32 12v40M24 52h16M27 52l5-18 5 18M21 24c-5 5-5 11 0 16M43 24c5 5 5 11 0 16M15 18c-10 10-10 22 0 32M49 18c10 10 10 22 0 32" stroke="currentColor" stroke-width="3" stroke-linecap="round"/><circle cx="32" cy="22" r="4" fill="currentColor"/></svg>
+    <div><div class="brand-title">Estação APRS APRS Monitor</div><div class="brand-sub">Configuração da estação • Direwolf iGate / Digipeater</div><div class="nav"><a href="/">Monitor</a><a class="active" href="/config">Configuração</a></div></div>
+  </div>
+  <div class="tag"><i></i>CONFIGURAÇÃO ATUAL</div>
+</header>
+
+<section class="audio" id="audio">
+  <div class="channel rx"><div class="vu-head"><strong>RX</strong><span class="vu-read" id="rx_read">DW --</span></div><div class="scale"><span>-60</span><span>-40</span><span>-20</span><span>-10</span><span>-3</span><span>0</span><span>+3</span></div><div class="track rx" id="vu_rx"></div><div class="gain"><span>Ganho RX</span><input id="gain_rx" type="range" min="0" max="100"><b id="gain_rx_v">--%</b></div></div>
+  <div class="channel tx"><div class="vu-head"><strong>TX</strong><span class="vu-read" id="tx_read">STBY</span></div><div class="scale"><span>-60</span><span>-40</span><span>-20</span><span>-10</span><span>-3</span><span>0</span><span>+3</span></div><div class="track tx" id="vu_tx"></div><div class="gain"><span>Ganho TX</span><input id="gain_tx" type="range" min="0" max="100"><b id="gain_tx_v">--%</b></div></div>
+  <div class="activity"><div class="lamp-card rx" id="rx_on"><span class="lamp"></span><strong>RX</strong><small>STBY</small></div><div class="lamp-card tx" id="tx_on"><span class="lamp"></span><strong>TX</strong><small>STBY</small></div></div>
+</section>
+
+<div class="layout">
+<div class="left">
+
+<section class="panel">
+  <div class="panel-head"><div><div class="panel-title">Identificação / APRS-IS</div><div class="panel-sub">Indicativo, servidor e raio recebido da internet</div></div></div>
+  <div class="body grid">
+    <div class="field"><label>Indicativo</label><input class="cfg" id="call"></div>
+    <div class="field"><label>Servidor APRS-IS</label><input class="cfg" id="server"></div>
+    <div class="field"><label>Porta</label><input class="cfg" id="port" type="number" min="1" max="65535"></div>
+    <div class="field"><label>Passcode APRS-IS</label><input class="cfg" id="passcode" type="password" placeholder="Deixe em branco para manter o atual"></div>
+    <div class="field full">
+      <label>Raio do filtro APRS-IS</label>
+      <div class="range-line"><input id="radius_range" type="range" min="1" max="500" step="1"><div class="unit-row"><input class="cfg" id="radius" type="number" min="1" max="500"><span class="unit">km</span></div></div>
+      <div class="help">O servidor APRS-IS entrega à estação as estações dentro deste raio, usando as coordenadas configuradas na seção de localização.</div>
+    </div>
+    <div class="filter-preview" id="filter_preview">r/--/--/--</div>
+
+    <div class="offline-card">
+      <div class="offline-head"><div><strong>Mapa offline da estação</strong><br><span>Baixe uma área para o dashboard e a configuração continuarem com mapa mesmo sem internet.</span></div><span id="offline_badge">sem pacote</span></div>
+      <div class="offline-controls">
+        <div class="offline-control"><label>Tipo de mapa</label><select class="cfg" id="offline_kind"><option value="streets">Ruas</option><option value="satellite">Satélite</option></select></div>
+        <div class="offline-control"><label>Raio do download</label><div class="offline-range"><input id="offline_radius" type="range" min="1" max="500" step="1"><div class="offline-value-box"><input id="offline_radius_value" type="number" min="1" max="500"><span>km</span></div></div></div>
+        <div class="offline-control"><label>Detalhe máximo</label><div class="offline-range"><input id="offline_zoom" type="range" min="8" max="15" step="1"><div class="offline-value-box"><input id="offline_zoom_value" type="number" min="8" max="15"><span>×</span></div></div></div>
+        <div class="offline-map-wrap"><div class="offline-map-toolbar"><span><span>Centro offline independente • clique no mapa ou arraste o pin</span><br><span class="offline-center-label" id="offline_coords">--, --</span></span><select id="offline_layer" class="cfg" style="width:120px;height:26px"><option value="street">Ruas</option><option value="sat">Satélite</option></select></div><div id="offline_map"></div></div>
+        <div class="offline-summary"><div class="offline-package" id="offline_streets"><strong>Ruas</strong><small>Nenhum pacote baixado.</small></div><div class="offline-package" id="offline_satellite"><strong>Satélite</strong><small>Nenhum pacote baixado.</small></div></div>
+        <div class="offline-progress"><div class="offline-progress-top"><span id="offline_progress_text">Aguardando download.</span><span id="offline_progress_pct">0%</span></div><div class="offline-progress-bar"><span id="offline_progress_bar"></span></div></div>
+        <div class="offline-actions"><span class="offline-estimate" id="offline_estimate">Calculando área...</span><button class="danger-btn" id="offline_delete" type="button">Excluir pacote</button><button class="save-btn" id="offline_download" type="button">Baixar / atualizar offline</button></div>
+      </div>
+    </div>
+
+    <div class="section-actions"><button class="save-btn" data-save="identification">Salvar alterações</button></div>
+  </div>
+</section>
+
+<section class="panel">
+  <div class="panel-head"><div><div class="panel-title">Localização / Antena</div><div class="panel-sub">Clique no mapa ou arraste o pin</div></div></div>
+  <div class="body grid">
+    <div class="field"><label>Latitude</label><input class="cfg" id="lat" type="number" step="0.00001"></div>
+    <div class="field"><label>Longitude</label><input class="cfg" id="lon" type="number" step="0.00001"></div>
+    <div class="field"><label>Altitude</label><div class="unit-row"><input class="cfg" id="alt" type="number" step="1"><span class="unit">m</span></div></div>
+    <div class="field"><label>Altura da antena</label><div class="unit-row"><input class="cfg" id="height" type="number" step="1"><span class="unit">m</span></div></div>
+    <div class="field"><label>Ganho da antena</label><div class="unit-row"><input class="cfg" id="gain" type="number" step="0.1"><span class="unit">dBi</span></div></div>
+    <div class="field"><label>Potência informada</label><div class="unit-row"><input class="cfg" id="power" type="number" step="0.1"><span class="unit">W</span></div></div>
+    <div class="map-card">
+      <div class="map-toolbar"><span>Posição da estação • círculo = filtro APRS-IS</span><select id="map_layer"><option value="street">Ruas</option><option value="sat">Satélite</option></select></div>
+      <div id="station_map"></div>
+    </div>
+    <div class="section-actions"><button class="secondary-btn" id="recenter_map">Recentralizar</button><button class="save-btn" data-save="location">Salvar alterações</button></div>
+  </div>
+</section>
+
+<section class="panel">
+  <div class="panel-head"><div><div class="panel-title">Beacon</div><div class="panel-sub">Identidade visual e periodicidade</div></div></div>
+  <div class="body grid">
+    <div class="field full"><label>Texto / comentário do beacon</label><input class="cfg" id="comment" maxlength="80"></div>
+    <div class="field full">
+      <label>Símbolo APRS</label>
+      <button class="symbol-select" id="symbol_btn" type="button"><span class="symbol-ico" id="symbol_icon">📡</span><span class="symbol-copy"><strong id="symbol_label">Escolher símbolo</strong><small id="symbol_help">Clique para abrir a galeria</small></span></button>
+    </div>
+    <div class="field"><label>Intervalo APRS-IS</label><div class="unit-row"><input class="cfg" id="every" type="number" min="1" max="1440"><span class="unit">min</span></div></div>
+    <div class="field">
+      <label>SLOT <span class="info-chip" title="Sincroniza o beacon com um horário previsível dentro do intervalo.">i</span></label>
+      <input class="cfg" id="slot" placeholder="0:01">
+      <div class="help"><strong>Para que serve:</strong> define em qual minuto/segundo do ciclo o beacon deve sair. Isso torna os beacons previsíveis e evita depender do instante em que o Direwolf foi iniciado.</div>
+    </div>
+    <div class="field full">
+      <label>Compressão APRS <span class="info-chip" title="Posição APRS comprimida reduz o tamanho do pacote transmitido.">i</span></label>
+      <select class="cfg" id="compress"><option value="0">Desativada — posição legível</option><option value="1">Ativada — pacote menor</option></select>
+      <div class="help"><strong>Compressão:</strong> reduz o tamanho da posição no pacote APRS. É útil para economizar tempo de RF, mas deixa a informação bruta menos legível para quem olha o pacote manualmente.</div>
+    </div>
+    <div class="section-actions"><button class="save-btn" data-save="beacon">Salvar alterações</button></div>
+  </div>
+</section>
+
+<section class="panel">
+  <div class="panel-head"><div><div class="panel-title">Digipeater / IS → RF</div><div class="panel-sub">Funções que colocam pacotes no ar</div></div></div>
+  <div class="body grid">
+    <div class="field full toggle-line"><div class="toggle-copy"><strong>Digipeater RF</strong><small>Retransmite no RF os pacotes elegíveis recebidos pelo rádio.</small></div><label class="switch"><input id="digi" type="checkbox"><span class="slider"></span></label></div>
+    <div class="field full toggle-line"><div class="toggle-copy"><strong>iGate APRS-IS → RF</strong><small>Encaminha para RF os pacotes elegíveis recebidos da internet.</small></div><label class="switch"><input id="igtx" type="checkbox"><span class="slider"></span></label></div>
+    <div class="field full">
+      <label>Caminho VIA</label>
+      <select class="cfg" id="via"></select>
+      <div class="help" id="via_help"></div>
+    </div>
+    <div class="field">
+      <label>Limite 1 minuto <span class="info-chip" title="Limita quantos pacotes do APRS-IS podem ser colocados no RF em um minuto.">i</span></label>
+      <input class="cfg" id="limit1" type="number" min="1" max="999">
+      <div class="help">Proteção rápida contra rajadas: é o máximo de pacotes <strong>IS → RF</strong> permitido em aproximadamente um minuto.</div>
+    </div>
+    <div class="field">
+      <label>Limite 5 minutos <span class="info-chip" title="Limite acumulado para evitar congestionamento sustentado do canal.">i</span></label>
+      <input class="cfg" id="limit5" type="number" min="1" max="5000">
+      <div class="help">Proteção de médio prazo: impede que um volume alto e contínuo de tráfego da internet ocupe demais o canal de RF.</div>
+    </div>
+    <div class="section-actions"><button class="save-btn" data-save="digipeater">Salvar alterações</button></div>
+  </div>
+</section>
+
+<section class="panel" style="grid-column:1/-1">
+  <div class="panel-head"><div><div class="panel-title">RF / TNC / Hardware</div><div class="panel-sub">Áudio, PTT e temporizações do modem</div></div></div>
+  <div class="body grid">
+    <div class="field">
+      <label>Placa de áudio</label><select class="cfg" id="adev"></select>
+      <div class="help">Lista os dispositivos ALSA encontrados na VM. O Direwolf usa este dispositivo tanto para receber quanto para gerar o áudio AFSK.</div>
+    </div>
+    <div class="field">
+      <label>Sample rate</label><select class="cfg" id="rate"></select>
+      <div class="help">Taxa de amostragem da placa de áudio. Para AFSK 1200, <strong>48 kHz</strong> é uma escolha excelente quando suportada nativamente.</div>
+    </div>
+    <div class="field">
+      <label>Canais <span class="info-chip" title="Quantidade de canais de áudio que o Direwolf abre no dispositivo.">i</span></label><select class="cfg" id="channels"></select>
+      <div class="help"><strong>1 = mono</strong>, suficiente para uma única interface de rádio. Use 2 apenas quando realmente precisar de dois canais no mesmo dispositivo.</div>
+    </div>
+    <div class="field">
+      <label>Porta serial do PTT</label><select class="cfg" id="ptt_port"></select>
+      <div class="help">Porta USB/serial usada para chavear o transmissor.</div>
+    </div>
+    <div class="field">
+      <label>Linha de controle PTT</label><select class="cfg" id="ptt_signal"><option value="DTR">DTR</option><option value="RTS">RTS</option></select>
+      <div class="help">Escolha qual linha de modem da porta serial aciona o transistor/interface de PTT.</div>
+    </div>
+    <div class="field">
+      <label>Lógica do PTT</label><label class="checkline"><input id="ptt_invert" type="checkbox"> Inverter lógica DTR/RTS</label>
+      <div class="help">Ative se sua interface chavear ao contrário. O Direwolf representa isso colocando <strong>-</strong> antes de DTR ou RTS.</div>
+    </div>
+
+    <div class="field">
+      <label>DWAIT <span class="info-chip" title="Atraso inicial antes da disputa pelo canal após ele ficar livre.">i</span></label><div class="unit-row"><input class="cfg" id="dwait" type="number" min="0" max="255"><span class="unit">×10 ms</span></div>
+      <div class="help">Tempo mínimo antes de iniciar o algoritmo de acesso ao canal depois que o RF fica livre.</div>
+    </div>
+    <div class="field">
+      <label>SLOTTIME <span class="info-chip" title="Intervalo entre as oportunidades de transmissão no algoritmo CSMA/p-persistent.">i</span></label><div class="unit-row"><input class="cfg" id="slottime" type="number" min="0" max="255"><span class="unit">×10 ms</span></div>
+      <div class="help">Intervalo entre as tentativas de acesso ao canal enquanto o Direwolf aguarda uma oportunidade para transmitir.</div>
+    </div>
+    <div class="field">
+      <label>PERSIST <span class="info-chip" title="Probabilidade de transmitir a cada slot; escala de 0 a 255.">i</span></label><input class="cfg" id="persist" type="number" min="0" max="255" placeholder="Padrão do Direwolf">
+      <div class="help">Controla a agressividade de acesso ao canal. Valor maior = maior chance de transmitir a cada slot. Em branco mantém o padrão/estado atual.</div>
+    </div>
+    <div class="field">
+      <label>TXTAIL <span class="info-chip" title="Tempo extra de PTT após o final do pacote.">i</span></label><div class="unit-row"><input class="cfg" id="txtail" type="number" min="0" max="255"><span class="unit">×10 ms</span></div>
+      <div class="help">Mantém o PTT acionado por um pequeno tempo depois do último bit. Excesso só ocupa o canal sem necessidade.</div>
+    </div>
+    <div class="field full">
+      <label>DEDUPE <span class="info-chip" title="Janela usada para reconhecer e bloquear retransmissões duplicadas recentes.">i</span></label><input class="cfg" id="dedupe" type="number" min="0" max="3600">
+      <div class="help">Janela de proteção contra duplicatas. Evita colocar no ar novamente um pacote idêntico que acabou de ser transmitido/observado, reduzindo loops e ocupação desnecessária.</div>
+    </div>
+
+    <div class="txdelay-wrap">
+      <div class="txdelay-top"><div><strong>TXDELAY</strong><div class="help">Tempo entre o acionamento do PTT e o início do pacote. O controle abaixo trabalha diretamente em milissegundos.</div></div><span class="txdelay-value" id="txdelay_value">0 ms</span></div>
+      <input id="txdelay" type="range" min="0" max="2000" step="10">
+      <div class="ticks"><span>0 ms</span><span>500</span><span>1000</span><span>1500</span><span>2000 ms</span></div>
+    </div>
+
+    <div class="section-actions"><button class="save-btn" data-save="hardware">Salvar alterações</button></div>
+  </div>
+</section>
+
+</div>
+
+<aside class="panel summary">
+  <div class="hero"><div class="call" id="sum_call">Estação APRS</div><div class="meta" id="sum_meta">Carregando...</div><div class="status-grid"><div class="status" id="s_is">APRS-IS<strong>--</strong></div><div class="status" id="s_digi">Digipeater<strong>--</strong></div><div class="status" id="s_igtx">IS → RF<strong>--</strong></div><div class="status" id="s_beacon">Beacon RF<strong>--</strong></div></div></div>
+  <div class="preview"><h4>Preview da configuração ativa</h4><div class="code" id="preview">Carregando...</div></div>
+</aside>
+</div>
+</div>
+
+<div class="modal" id="symbol_modal">
+  <div class="modal-card"><div class="modal-head"><strong>Escolher símbolo APRS</strong><button class="modal-close" id="symbol_close">×</button></div><div class="symbol-grid" id="symbol_grid"></div></div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script src="/static/vendor/leaflet/leaflet.js" onerror="this.onerror=null;this.src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'"></script>
+<script>
+var cfg=null,caps=null,selectedSymbol=null,configMap=null,mapMarker=null,filterCircle=null,streetLayer=null,satLayer=null;
+var offlineMap=null,offlineMarker=null,offlineCircle=null,offlineRadiusLabel=null,offlineStreetLayer=null,offlineSatLayer=null,offlineEstimateTimer=null;
+var offlineCenter={lat:null,lon:null};
+var audioTimers={rx:null,tx:null},audioEditing={rx:false,tx:false};
+
+function q(id){return document.getElementById(id)}
+function setv(id,v){var e=q(id);if(e)e.value=(v===null||v===undefined)?"":v}
+function status(id,on,text){var e=q(id);if(!e)return;e.classList.toggle("on",!!on);e.querySelector("strong").textContent=text}
+function showToast(msg,type){var t=q("toast");t.textContent=msg;t.className="toast show "+(type||"ok");clearTimeout(t._timer);t._timer=setTimeout(function(){t.className="toast"},4200)}
+function escapeHtml(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"})[c]})}
+async function api(url,opts){var r=await fetch(url,opts||{});var data=null;try{data=await r.json()}catch(e){}if(!r.ok)throw new Error((data&&data.detail)||("HTTP "+r.status));return data}
+
+function buildPreview(d){
+  var s=d.station||{},a=d.aprs_is||{},b=d.beacon_is||{},rf=d.beacon_rf||{},ig=d.igate_tx||{},r=d.radio||{},x=[];
+  x.push("MYCALL "+(s.callsign||"--"));
+  x.push("IGLOGIN "+(s.callsign||"--")+" *****");
+  x.push("IGSERVER "+(a.server||"--")+":"+(a.port||"--"));
+  if(a.filter&&a.filter.raw)x.push("IGFILTER "+a.filter.raw);
+  if(b.raw)x.push(b.raw);
+  if(rf.raw)x.push(rf.raw);
+  if(d.digipeater&&d.digipeater.raw)x.push(d.digipeater.raw);
+  if(ig.enabled)x.push("IGTXVIA 0 "+(ig.via||""));
+  if(ig.filter_raw)x.push(ig.filter_raw);
+  if(ig.limit_1m!=null)x.push("IGTXLIMIT "+ig.limit_1m+" "+ig.limit_5m);
+  if(r.audio_device)x.push("ADEVICE "+r.audio_device);
+  if(r.ptt_raw)x.push(r.ptt_raw);
+  x.push("TXDELAY "+(r.txdelay==null?"--":r.txdelay)+"  # "+(r.txdelay_ms||0)+" ms");
+  return x.join("\n");
+}
+function updateFilterPreview(){
+  var lat=parseFloat(q("lat").value),lon=parseFloat(q("lon").value),rad=parseFloat(q("radius").value);
+  q("filter_preview").textContent="r/"+(Number.isFinite(lat)?lat.toFixed(5):"--")+"/"+(Number.isFinite(lon)?lon.toFixed(5):"--")+"/"+(Number.isFinite(rad)?rad:"--");
+  if(filterCircle&&Number.isFinite(rad))filterCircle.setRadius(rad*1000);
+}
+function fillSelect(el,items,current){
+  el.innerHTML="";
+  (items||[]).forEach(function(item){
+    var value=typeof item==="object"?item.value:item,label=typeof item==="object"?item.label:item;
+    var o=document.createElement("option");o.value=value;o.textContent=label;if(String(value)===String(current))o.selected=true;el.appendChild(o);
+  });
+  if(current!=null&&!Array.from(el.options).some(function(o){return String(o.value)===String(current)})){var o=document.createElement("option");o.value=current;o.textContent=current+" — atual";o.selected=true;el.appendChild(o)}
+}
+function symbolInfo(value){return (caps&&caps.symbols||[]).find(function(s){return s.value===value})||{value:value,label:"Símbolo atual",icon:"●",help:"Símbolo configurado no Direwolf"}}
+function selectSymbol(value){
+  selectedSymbol=value;var s=symbolInfo(value);q("symbol_icon").textContent=s.icon;q("symbol_label").textContent=s.label;q("symbol_help").textContent=s.help;
+  Array.from(document.querySelectorAll(".symbol-option")).forEach(function(el){el.classList.toggle("selected",el.dataset.value===value)});
+}
+function renderSymbolGrid(){
+  var box=q("symbol_grid");box.innerHTML="";
+  (caps.symbols||[]).forEach(function(s){
+    var b=document.createElement("button");b.type="button";b.className="symbol-option";b.dataset.value=s.value;
+    b.innerHTML='<span class="symbol-ico">'+escapeHtml(s.icon)+'</span><span><strong>'+escapeHtml(s.label)+'</strong><small>'+escapeHtml(s.help)+'</small></span>';
+    b.onclick=function(){selectSymbol(s.value);q("symbol_modal").classList.remove("show")};box.appendChild(b);
+  });
+}
+
+function resilientLayer(url,kind,options){
+  var Resilient=L.TileLayer.extend({
+    createTile:function(coords,done){
+      var tile=document.createElement("img"),usedLocal=false;
+      tile.alt="";tile.setAttribute("role","presentation");
+      tile.onload=function(){done(null,tile)};
+      tile.onerror=function(){
+        if(!usedLocal){
+          usedLocal=true;
+          tile.src="/offline-map/"+kind+"/"+coords.z+"/"+coords.x+"/"+coords.y+".jpg";
+        }else{
+          done(new Error("tile indisponível"),tile);
+        }
+      };
+      tile.src=this.getTileUrl(coords);
+      return tile;
+    }
+  });
+  return new Resilient(url,options||{});
+}
+function makeStreetLayer(){
+  return resilientLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png","streets",{maxZoom:19,attribution:"© OpenStreetMap contributors"});
+}
+function makeSatelliteLayer(){
+  return resilientLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}","satellite",{maxZoom:19,attribution:"Esri • fallback offline EOX"});
+}
+function initMap(lat,lon,radius){
+  if(!window.L)return;
+  if(configMap){updateMapPosition(lat,lon);return}
+  streetLayer=makeStreetLayer();
+  satLayer=makeSatelliteLayer();
+  configMap=L.map("station_map",{zoomControl:true,attributionControl:true}).setView([lat,lon],12);streetLayer.addTo(configMap);
+  var icon=L.divIcon({className:"",html:'<div class="cfg-pin"></div>',iconSize:[30,30],iconAnchor:[15,30]});
+  mapMarker=L.marker([lat,lon],{draggable:true,icon:icon}).addTo(configMap);
+  filterCircle=L.circle([lat,lon],{radius:(radius||100)*1000,color:"#22d3ee",weight:1.5,opacity:.65,fillColor:"#22d3ee",fillOpacity:.06,dashArray:"7,7"}).addTo(configMap);
+  function setPoint(ll){q("lat").value=ll.lat.toFixed(5);q("lon").value=ll.lng.toFixed(5);mapMarker.setLatLng(ll);filterCircle.setLatLng(ll);updateFilterPreview()}
+  mapMarker.on("dragend",function(){setPoint(mapMarker.getLatLng())});configMap.on("click",function(e){setPoint(e.latlng)});
+  q("map_layer").onchange=function(){if(this.value==="sat"){configMap.removeLayer(streetLayer);satLayer.addTo(configMap)}else{configMap.removeLayer(satLayer);streetLayer.addTo(configMap)}};
+  q("recenter_map").onclick=function(){configMap.setView(mapMarker.getLatLng(),12)};
+}
+function updateMapPosition(lat,lon){
+  if(!configMap||!Number.isFinite(Number(lat))||!Number.isFinite(Number(lon)))return;
+  var ll=L.latLng(Number(lat),Number(lon));mapMarker.setLatLng(ll);filterCircle.setLatLng(ll);configMap.setView(ll,configMap.getZoom());
+}
+
+function offlineRadiusLabelPoint(lat,lon,radiusKm){
+  var cos=Math.max(.05,Math.abs(Math.cos(lat*Math.PI/180)));
+  return L.latLng(lat,lon+(radiusKm/(111.32*cos)));
+}
+function updateOfflineGeometry(fitArea){
+  if(!offlineMap||!Number.isFinite(offlineCenter.lat)||!Number.isFinite(offlineCenter.lon))return;
+  var radius=Math.max(1,Number(q("offline_radius_value").value)||1),ll=L.latLng(offlineCenter.lat,offlineCenter.lon);
+  offlineMarker.setLatLng(ll);offlineCircle.setLatLng(ll).setRadius(radius*1000);
+  q("offline_coords").textContent=offlineCenter.lat.toFixed(5)+", "+offlineCenter.lon.toFixed(5);
+  var labelPoint=offlineRadiusLabelPoint(offlineCenter.lat,offlineCenter.lon,radius);
+  var labelIcon=L.divIcon({className:"",html:'<div class="offline-radius-label">'+radius.toLocaleString("pt-BR")+' km</div>',iconSize:null,iconAnchor:[0,10]});
+  if(!offlineRadiusLabel)offlineRadiusLabel=L.marker(labelPoint,{icon:labelIcon,interactive:false}).addTo(offlineMap);
+  else{offlineRadiusLabel.setLatLng(labelPoint);offlineRadiusLabel.setIcon(labelIcon)}
+  if(fitArea){offlineMap.fitBounds(offlineCircle.getBounds(),{padding:[28,28],animate:false})}
+}
+function setOfflineCenter(ll,fitArea){
+  offlineCenter.lat=Number(ll.lat);offlineCenter.lon=Number(ll.lng);updateOfflineGeometry(!!fitArea);scheduleOfflineEstimate();
+}
+function initOfflineMap(lat,lon,radius){
+  if(!window.L)return;
+  if(offlineMap)return;
+  offlineCenter.lat=Number(lat);offlineCenter.lon=Number(lon);
+  offlineStreetLayer=makeStreetLayer();offlineSatLayer=makeSatelliteLayer();
+  offlineMap=L.map("offline_map",{zoomControl:true,attributionControl:true,scrollWheelZoom:true}).setView([offlineCenter.lat,offlineCenter.lon],10);
+  offlineStreetLayer.addTo(offlineMap);
+  var icon=L.divIcon({className:"",html:'<div class="cfg-pin"></div>',iconSize:[30,30],iconAnchor:[15,30]});
+  offlineMarker=L.marker([offlineCenter.lat,offlineCenter.lon],{icon:icon,draggable:true}).addTo(offlineMap);
+  offlineCircle=L.circle([offlineCenter.lat,offlineCenter.lon],{radius:(radius||100)*1000,color:"#2ee88a",weight:2,opacity:.9,fillColor:"#2ee88a",fillOpacity:.08,dashArray:"7,6"}).addTo(offlineMap);
+  offlineMarker.on("dragend",function(){setOfflineCenter(offlineMarker.getLatLng(),false)});
+  offlineMap.on("click",function(e){setOfflineCenter(e.latlng,false)});
+  q("offline_layer").onchange=function(){if(this.value==="sat"){offlineMap.removeLayer(offlineStreetLayer);offlineSatLayer.addTo(offlineMap)}else{offlineMap.removeLayer(offlineSatLayer);offlineStreetLayer.addTo(offlineMap)}};
+  setTimeout(function(){offlineMap.invalidateSize();updateOfflineGeometry(true)},120);
+}
+function formatMb(v){return Number(v||0).toLocaleString("pt-BR",{maximumFractionDigits:1})+" MB"}
+async function estimateOffline(){
+  if(!cfg)return;
+  var kind=q("offline_kind").value,lat=Number(offlineCenter.lat),lon=Number(offlineCenter.lon),rad=Number(q("offline_radius_value").value),zoom=Number(q("offline_zoom_value").value);
+  try{
+    var e=await api("/api/offline-map/estimate",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({kind:kind,latitude:lat,longitude:lon,radius_km:rad,max_zoom:zoom})});
+    q("offline_estimate").textContent=e.tile_count.toLocaleString("pt-BR")+" tiles • ~"+formatMb(e.estimated_mb)+(e.allowed?"":" • área grande demais");
+    q("offline_download").disabled=!e.allowed;
+  }catch(err){q("offline_estimate").textContent=err.message;q("offline_download").disabled=true}
+}
+function scheduleOfflineEstimate(){clearTimeout(offlineEstimateTimer);offlineEstimateTimer=setTimeout(estimateOffline,180)}
+function renderOfflinePackage(id,pkg,label){
+  var box=q(id),small=box.querySelector("small");
+  if(!pkg){small.textContent="Nenhum pacote baixado.";return}
+  small.textContent="Raio "+Number(pkg.radius_km).toLocaleString("pt-BR")+" km • zoom "+pkg.max_zoom+" • "+Number(pkg.tile_count||0).toLocaleString("pt-BR")+" tiles • "+formatMb(pkg.size_mb);
+}
+async function updateOfflineStatus(){
+  try{
+    var st=await api("/api/offline-map/status",{cache:"no-store"}),pk=st.packages||{},dl=st.download||{};
+    renderOfflinePackage("offline_streets",pk.streets,"Ruas");renderOfflinePackage("offline_satellite",pk.satellite,"Satélite");
+    q("offline_badge").textContent=(pk.streets||pk.satellite)?"offline disponível":"sem pacote";
+    var pct=Number(dl.progress_percent||0);q("offline_progress_bar").style.width=pct+"%";q("offline_progress_pct").textContent=pct.toLocaleString("pt-BR",{maximumFractionDigits:1})+"%";
+    q("offline_progress_text").textContent=dl.active?("Baixando "+(dl.kind==="satellite"?"Satélite":"Ruas")+" • "+Number(dl.done||0).toLocaleString("pt-BR")+"/"+Number(dl.total||0).toLocaleString("pt-BR")):(dl.message||"Aguardando download.");
+    q("offline_download").disabled=!!dl.active;
+  }catch(e){}
+}
+async function startOfflineDownload(){
+  var payload={kind:q("offline_kind").value,latitude:Number(offlineCenter.lat),longitude:Number(offlineCenter.lon),radius_km:Number(q("offline_radius_value").value),max_zoom:Number(q("offline_zoom_value").value)};
+  try{await api("/api/offline-map/download",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});showToast("Download do mapa offline iniciado.","ok");updateOfflineStatus()}catch(e){showToast(e.message,"bad")}
+}
+async function deleteOffline(){
+  var kind=q("offline_kind").value;
+  if(!confirm("Excluir o mapa offline de "+(kind==="satellite"?"Satélite":"Ruas")+"?"))return;
+  try{await api("/api/offline-map/"+kind,{method:"DELETE"});showToast("Pacote offline excluído.","ok");updateOfflineStatus()}catch(e){showToast(e.message,"bad")}
+}
+function applyOfflineZoom(value){
+  var max=Number(q("offline_zoom").max)||15,v=Math.max(8,Math.min(max,Number(value)||8));
+  q("offline_zoom").value=v;q("offline_zoom_value").value=v;
+  if(offlineMap&&Number.isFinite(offlineCenter.lat)&&Number.isFinite(offlineCenter.lon))offlineMap.setView([offlineCenter.lat,offlineCenter.lon],v,{animate:false});
+  scheduleOfflineEstimate();
+}
+function applyOfflineRadius(value,fitArea){
+  var v=Math.max(1,Math.min(500,Number(value)||1));
+  q("offline_radius").value=v;q("offline_radius_value").value=v;
+  updateOfflineGeometry(!!fitArea);scheduleOfflineEstimate();
+}
+function setupOfflineControls(radius){
+  q("offline_radius").value=radius;q("offline_radius_value").value=radius;q("offline_zoom").value=14;q("offline_zoom_value").value=14;
+  initOfflineMap(Number(q("lat").value)||0,Number(q("lon").value)||0,radius);
+  q("offline_kind").onchange=function(){
+    var max=this.value==="satellite"?14:15;q("offline_zoom").max=max;q("offline_zoom_value").max=max;
+    if(Number(q("offline_zoom_value").value)>max)applyOfflineZoom(max);
+    q("offline_layer").value=this.value==="satellite"?"sat":"street";q("offline_layer").onchange();scheduleOfflineEstimate();
+  };
+  q("offline_radius").oninput=function(){applyOfflineRadius(this.value,false)};
+  q("offline_radius").onchange=function(){applyOfflineRadius(this.value,true)};
+  q("offline_radius_value").oninput=function(){applyOfflineRadius(this.value,false)};
+  q("offline_radius_value").onchange=function(){applyOfflineRadius(this.value,true)};
+  q("offline_zoom").oninput=function(){applyOfflineZoom(this.value)};
+  q("offline_zoom_value").oninput=function(){applyOfflineZoom(this.value)};
+  q("offline_download").onclick=startOfflineDownload;q("offline_delete").onclick=deleteOffline;
+  scheduleOfflineEstimate();updateOfflineStatus();
+}
+
+function viaHelp(){
+  var v=q("via").value,item=(caps.via_options||[]).find(function(x){return x.value===v});q("via_help").textContent=item?item.help:"";
+}
+function loadIntoForm(d){
+  cfg=d;var s=d.station||{},a=d.aprs_is||{},b=d.beacon_is||{},rf=d.beacon_rf||{},ig=d.igate_tx||{},r=d.radio||{};
+  setv("call",s.callsign);setv("server",a.server);setv("port",a.port);q("passcode").value="";
+  var radius=a.filter&&a.filter.radius_km!=null?a.filter.radius_km:100;setv("radius",radius);q("radius_range").value=radius;
+  setv("lat",s.latitude);setv("lon",s.longitude);setv("alt",s.altitude_m);setv("height",s.antenna_height_m);setv("gain",s.antenna_gain_dbi);setv("power",s.power_w);
+  setv("comment",b.comment);setv("every",b.every_minutes);setv("slot",b.slot);q("compress").value=String(b.compress==null?0:b.compress);selectSymbol(b.symbol||"I#");
+  q("digi").checked=!!(d.digipeater&&d.digipeater.enabled);q("igtx").checked=!!ig.enabled;fillSelect(q("via"),caps.via_options,ig.via);viaHelp();setv("limit1",ig.limit_1m);setv("limit5",ig.limit_5m);
+  fillSelect(q("adev"),caps.audio_devices,r.audio_device);fillSelect(q("rate"),caps.sample_rates,r.sample_rate);fillSelect(q("channels"),caps.channels,r.audio_channels);fillSelect(q("ptt_port"),caps.serial_ports,r.ptt_port);q("ptt_signal").value=r.ptt_signal||"DTR";q("ptt_invert").checked=!!r.ptt_invert;
+  setv("dwait",r.dwait);setv("slottime",r.slottime);setv("persist",r.persist);setv("txtail",r.txtail);setv("dedupe",r.dedupe);q("txdelay").value=r.txdelay_ms||0;q("txdelay_value").textContent=(r.txdelay_ms||0)+" ms";
+  q("sum_call").textContent=s.callsign||"N0CALL";document.title=(s.callsign||"Direwolf")+" • Configuração";q("sum_meta").textContent=(s.latitude??"--")+", "+(s.longitude??"--")+" • antena "+(s.antenna_height_m??"--")+" m";
+  status("s_is",!!a.server,a.server||"NÃO CONFIGURADO");status("s_digi",!!(d.digipeater&&d.digipeater.enabled),(d.digipeater&&d.digipeater.enabled)?"ATIVO":"DESATIVADO");status("s_igtx",!!ig.enabled,ig.enabled?"ATIVO":"DESATIVADO");status("s_beacon",!!rf.enabled,rf.enabled?"ATIVO":"DESATIVADO");
+  q("preview").textContent=buildPreview(d);updateFilterPreview();initMap(Number(s.latitude)||0,Number(s.longitude)||0,Number(radius)||100);
+  if(!offlineMap)setupOfflineControls(Number(radius)||100);
+}
+async function loadAll(){
+  try{
+    var all=await Promise.all([api("/api/station-config",{cache:"no-store"}),api("/api/station-config/capabilities",{cache:"no-store"})]);caps=all[1];renderSymbolGrid();loadIntoForm(all[0]);
+  }catch(e){showToast("Falha ao carregar configuração: "+e.message,"bad")}
+}
+
+async function saveSection(section,button){
+  var payload={};
+  if(section==="identification")payload={callsign:q("call").value,server:q("server").value,port:Number(q("port").value),passcode:q("passcode").value,radius_km:Number(q("radius").value)};
+  if(section==="location")payload={latitude:Number(q("lat").value),longitude:Number(q("lon").value),altitude_m:Number(q("alt").value),antenna_height_m:Number(q("height").value),antenna_gain_dbi:Number(q("gain").value),power_w:Number(q("power").value)};
+  if(section==="beacon")payload={comment:q("comment").value,symbol:selectedSymbol,every_minutes:Number(q("every").value),slot:q("slot").value,compress:q("compress").value==="1"};
+  if(section==="digipeater")payload={digipeater_enabled:q("digi").checked,igate_enabled:q("igtx").checked,via:q("via").value,limit_1m:Number(q("limit1").value),limit_5m:Number(q("limit5").value)};
+  if(section==="hardware")payload={audio_device:q("adev").value,sample_rate:Number(q("rate").value),audio_channels:Number(q("channels").value),ptt_port:q("ptt_port").value,ptt_signal:q("ptt_signal").value,ptt_invert:q("ptt_invert").checked,dwait:Number(q("dwait").value),slottime:Number(q("slottime").value),persist:q("persist").value,txdelay_ms:Number(q("txdelay").value),txtail:Number(q("txtail").value),dedupe:Number(q("dedupe").value)};
+  button.disabled=true;var old=button.textContent;button.textContent="Salvando...";
+  try{
+    var result=await api("/api/station-config/"+section,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
+    loadIntoForm(result.config);
+    showToast(result.message,result.restart_required?"warn":"ok");
+  }catch(e){showToast(e.message,"bad")}
+  finally{button.disabled=false;button.textContent=old}
+}
+
+document.querySelectorAll("[data-save]").forEach(function(btn){btn.onclick=function(){saveSection(this.dataset.save,this)}});
+q("radius_range").oninput=function(){q("radius").value=this.value;updateFilterPreview()};q("radius").oninput=function(){q("radius_range").value=Math.max(1,Math.min(500,Number(this.value)||1));updateFilterPreview()};
+function syncMapFromFields(){var lat=Number(q("lat").value),lon=Number(q("lon").value);if(Number.isFinite(lat)&&Number.isFinite(lon)&&mapMarker){var ll=L.latLng(lat,lon);mapMarker.setLatLng(ll);filterCircle.setLatLng(ll)}updateFilterPreview()}
+q("lat").oninput=syncMapFromFields;
+q("lon").oninput=syncMapFromFields;q("via").onchange=viaHelp;q("txdelay").oninput=function(){q("txdelay_value").textContent=this.value+" ms"};
+q("symbol_btn").onclick=function(){q("symbol_modal").classList.add("show")};q("symbol_close").onclick=function(){q("symbol_modal").classList.remove("show")};q("symbol_modal").onclick=function(e){if(e.target===this)this.classList.remove("show")};
+
+function initVu(id){var b=q(id);for(var i=0;i<32;i++){var s=document.createElement("span");s.className="seg";if(i>=23)s.classList.add("mid");if(i>=29)s.classList.add("hot");b.appendChild(s)}}
+function drawVu(id,p){var b=q(id),n=Math.round(Math.max(0,Math.min(100,Number(p)||0))/100*b.children.length);Array.prototype.forEach.call(b.children,function(s,i){s.classList.toggle("active",i<n)})}
+function lamp(id,on){var e=q(id);e.classList.toggle("on",!!on);e.querySelector("small").textContent=on?"ON":"STBY"}
+async function audio(){
+  try{
+    var d=await api("/api/audio",{cache:"no-store"}),rx=d.rx||{},tx=d.tx||{};drawVu("vu_rx",rx.meter_percent);drawVu("vu_tx",tx.meter_percent);q("rx_read").textContent="DW "+(rx.direwolf_level==null?"--":rx.direwolf_level);q("tx_read").textContent=tx.active?"NO AR":"STBY";lamp("rx_on",rx.active);lamp("tx_on",tx.active);
+    [["rx",rx],["tx",tx]].forEach(function(p){var role=p[0],x=p[1],sl=q("gain_"+role),lb=q("gain_"+role+"_v");sl.disabled=!x.available;if(!audioEditing[role]&&x.gain_percent!=null){sl.value=x.gain_percent;lb.textContent=Math.round(x.gain_percent)+"%"}else if(!x.available)lb.textContent="N/D"});
+  }catch(e){}
+}
+async function setGain(role,v){try{await api("/api/audio/gain/"+role+"?percent="+encodeURIComponent(v),{method:"POST"});await audio()}catch(e){showToast("Falha ao ajustar ganho de áudio.","bad")}}
+["rx","tx"].forEach(function(role){var s=q("gain_"+role),l=q("gain_"+role+"_v");s.onpointerdown=function(){audioEditing[role]=true};s.oninput=function(){audioEditing[role]=true;l.textContent=this.value+"%";clearTimeout(audioTimers[role]);audioTimers[role]=setTimeout(()=>setGain(role,this.value),180)};s.onpointerup=function(){audioEditing[role]=false;setGain(role,this.value)};s.onchange=function(){audioEditing[role]=false;setGain(role,this.value)}});
+
+initVu("vu_rx");initVu("vu_tx");audio();loadAll();setInterval(audio,650);setInterval(updateOfflineStatus,1500);
+</script>
+</body>
+</html>
