@@ -2,19 +2,17 @@
 
 ## Objetivo
 
-Dispositivos USB podem cair e voltar. Dependendo do driver e do estado do Direwolf, o processo pode continuar ativo sem recuperar corretamente áudio ou PTT.
+Interfaces USB e outros recursos de hardware podem desaparecer e voltar. O Direwolf nem sempre recupera automaticamente um dispositivo removido durante a execução.
 
 O projeto adiciona duas camadas de recuperação.
 
-## 1. Restart do systemd
-
-O arquivo:
+## 1. Recuperação pelo systemd
 
 ```text
 systemd/direwolf-recovery.conf
 ```
 
-aplica:
+Aplica:
 
 ```ini
 [Unit]
@@ -29,58 +27,77 @@ Isso recupera o processo quando ele encerra.
 
 ## 2. Watchdog de hardware
 
-O serviço:
+Serviço:
 
 ```text
 aprs-hardware-watchdog.service
 ```
 
-executa:
+Script:
 
 ```text
 scripts/direwolf-hardware-watchdog.py
 ```
 
-O script lê `ADEVICE` e `PTT` do `direwolf.conf`.
+O watchdog lê o `direwolf.conf` e identifica `ADEVICE` e o método de PTT.
 
-Ele verifica periodicamente:
+### Áudio
 
-- se a captura ALSA requerida existe;
-- se a serial/PTT configurada existe;
-- se o serviço Direwolf está ativo.
+Para ALSA numérico, como `plughw:0,0`, o watchdog procura o card/device em `arecord -l`.
 
-Quando um dispositivo anteriormente ausente reaparece e os requisitos estão atendidos, o Direwolf é reiniciado após um pequeno tempo de estabilização.
+### PTT serial
 
-Em configuração RX-only sem `PTT`, a serial não é tratada como requisito.
+Quando existe:
 
-## Status
+```text
+PTT /dev/serial/by-id/... DTR
+```
+
+a porta passa a ser requisito. Se desaparecer e reaparecer, o watchdog reinicia o Direwolf quando todo o hardware necessário está novamente disponível.
+
+### PTT GPIOD
+
+Quando existe:
+
+```text
+PTT GPIOD /dev/gpiochip0 25
+```
+
+o watchdog verifica a disponibilidade do gpiochip.
+
+### RX-only
+
+Sem diretiva `PTT`, nenhum recurso de PTT é exigido. Apenas o áudio necessário à recepção é monitorado.
+
+## Estado do serviço
 
 ```bash
 systemctl status aprs-hardware-watchdog
-```
-
-Logs:
-
-```bash
 journalctl -u aprs-hardware-watchdog -f
 ```
 
-## Teste controlado
+## Teste controlado de serial
 
-Para testar uma serial/PTT:
-
-1. acompanhe o watchdog em um terminal;
-2. desconecte apenas a serial;
-3. confirme o evento de desconexão;
+1. acompanhe o journal;
+2. remova a interface serial;
+3. aguarde o evento;
 4. reconecte;
-5. confirme o restart do Direwolf;
-6. valide o serviço.
+5. confira o restart;
+6. valide o Direwolf.
+
+## Teste de GPIO
+
+Não é necessário desconectar fisicamente um GPIO. Para validar GPIOD:
 
 ```bash
-journalctl -u aprs-hardware-watchdog -f
+ls -l /dev/gpiochip*
+gpioinfo
+grep '^PTT' /home/aprs/direwolf.conf
+systemctl restart direwolf
+systemctl status direwolf --no-pager
 ```
 
-Não faça esse teste durante uma transmissão crítica.
+Faça o teste elétrico com interface adequada e sem gerar transmissão indevida.
 
 ## O que o watchdog não resolve
 
@@ -89,9 +106,10 @@ Ele não corrige:
 - cabo defeituoso;
 - mau contato;
 - undervoltage;
-- falha do conversor;
 - EMI;
+- falha do conversor;
+- configuração elétrica incorreta;
 - erro de enumeração USB no host;
-- configuração incorreta de PTT.
+- gpiochip/linha escolhidos incorretamente.
 
-O watchdog recupera a aplicação **depois** que o hardware volta a estar disponível.
+O watchdog recupera software quando o recurso volta a ficar disponível; ele não elimina a causa física.
