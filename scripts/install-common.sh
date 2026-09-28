@@ -5,6 +5,7 @@ PLATFORM="${1:-ubuntu}"
 PROJECT_REPO="${PROJECT_REPO:-https://github.com/cleziotc/direwolf-completo-com-dashboard.git}"
 PROJECT_BRANCH="${PROJECT_BRANCH:-main}"
 APRS_USER="${APRS_USER:-aprs}"
+APRS_GROUP="${APRS_GROUP:-}"
 APRS_HOME="${APRS_HOME:-/home/${APRS_USER}}"
 INSTALL_DIR="${APRS_DASHBOARD_DIR:-${APRS_HOME}/aprs-dashboard}"
 CONFIG_PATH="${DIREWOLF_CONFIG:-${APRS_HOME}/direwolf.conf}"
@@ -92,14 +93,17 @@ install_packages(){
 create_user(){
   if ! id "$APRS_USER" >/dev/null 2>&1; then
     log "Criando usuário de serviço $APRS_USER..."
-    useradd --create-home --shell /bin/bash "$APRS_USER"
+    useradd --create-home --user-group --shell /bin/bash "$APRS_USER"
   fi
+
+  APRS_GROUP="${APRS_GROUP:-$(id -gn "$APRS_USER")}"
+  getent group "$APRS_GROUP" >/dev/null 2>&1 || die "Grupo inválido para $APRS_USER: $APRS_GROUP"
 
   local groups=(audio dialout)
   getent group systemd-journal >/dev/null 2>&1 && groups+=(systemd-journal)
   getent group gpio >/dev/null 2>&1 && groups+=(gpio)
   usermod -aG "$(IFS=,; echo "${groups[*]}")" "$APRS_USER"
-  install -d -o "$APRS_USER" -g "$APRS_USER" "$APRS_HOME" "$ENV_DIR"
+  install -d -o "$APRS_USER" -g "$APRS_GROUP" "$APRS_HOME" "$ENV_DIR"
 }
 
 install_direwolf(){
@@ -168,7 +172,7 @@ install_dashboard(){
 
   mkdir -p "$INSTALL_DIR/data"
   chmod +x "$INSTALL_DIR/scripts/"*.sh "$INSTALL_DIR/scripts/"*.py 2>/dev/null || true
-  chown -R "$APRS_USER:$APRS_USER" "$INSTALL_DIR"
+  chown -R "$APRS_USER:$APRS_GROUP" "$INSTALL_DIR"
 }
 
 detect_audio(){
@@ -334,7 +338,7 @@ APRS_CONFIG_BACKUP_DIR=$INSTALL_DIR/data/config-backups
 APRS_OFFLINE_MAP_DIR=$INSTALL_DIR/data/offline-maps
 EOF
   chmod 0640 "$ENV_FILE"
-  chown "$APRS_USER:$APRS_USER" "$ENV_FILE"
+  chown "$APRS_USER:$APRS_GROUP" "$ENV_FILE"
 }
 
 write_direwolf_config(){
@@ -405,17 +409,45 @@ LOGDIR /var/log/direwolf/
 EOF
 
   chmod 0640 "$CONFIG_PATH"
-  chown "$APRS_USER:$APRS_USER" "$CONFIG_PATH"
-  install -d -o "$APRS_USER" -g "$APRS_USER" /var/log/direwolf
+  chown "$APRS_USER:$APRS_GROUP" "$CONFIG_PATH"
+  install -d -o "$APRS_USER" -g "$APRS_GROUP" /var/log/direwolf
+}
+
+render_systemd_unit(){
+  local src="$1" dest="$2"
+
+  python3 - "$src" "$dest" "$APRS_USER" "$APRS_GROUP" "$APRS_HOME" "$INSTALL_DIR" "$ENV_FILE" "$CONFIG_PATH" <<'PY'
+from pathlib import Path
+import sys
+
+src, dest, user, group, home, install_dir, env_file, config_path = sys.argv[1:]
+text = Path(src).read_text()
+
+replacements = (
+    ("/home/aprs/aprs-dashboard", install_dir),
+    ("/home/aprs/.config/aprs-dashboard.env", env_file),
+    ("/home/aprs/direwolf.conf", config_path),
+    ("/home/aprs", home),
+    ("User=aprs", f"User={user}"),
+    ("Group=aprs", f"Group={group}"),
+)
+
+for old, new in replacements:
+    text = text.replace(old, new)
+
+Path(dest).write_text(text)
+PY
+
+  chmod 0644 "$dest"
 }
 
 install_systemd(){
   log "Instalando serviços systemd..."
-  install -m 0644 "$INSTALL_DIR/systemd/direwolf.service" /etc/systemd/system/direwolf.service
-  install -m 0644 "$INSTALL_DIR/systemd/aprs-dashboard.service" /etc/systemd/system/aprs-dashboard.service
+  render_systemd_unit "$INSTALL_DIR/systemd/direwolf.service" /etc/systemd/system/direwolf.service
+  render_systemd_unit "$INSTALL_DIR/systemd/aprs-dashboard.service" /etc/systemd/system/aprs-dashboard.service
   install -d /etc/systemd/system/direwolf.service.d
   install -m 0644 "$INSTALL_DIR/systemd/direwolf-recovery.conf" /etc/systemd/system/direwolf.service.d/recovery.conf
-  install -m 0644 "$INSTALL_DIR/systemd/aprs-hardware-watchdog.service" /etc/systemd/system/aprs-hardware-watchdog.service
+  render_systemd_unit "$INSTALL_DIR/systemd/aprs-hardware-watchdog.service" /etc/systemd/system/aprs-hardware-watchdog.service
 
   local systemctl_bin
   systemctl_bin="$(command -v systemctl)"
