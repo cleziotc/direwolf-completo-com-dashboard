@@ -440,12 +440,50 @@ def _ptt(
         line
     )
 
-    if len(values) < 3:
+    if len(values) < 2:
 
         return {
+            "mode": "none",
             "port": None,
             "signal": None,
             "invert": False,
+            "gpio_chip": None,
+            "gpio_line": None,
+        }
+
+    if (
+        values[1].upper()
+        == "GPIOD"
+        and len(values) >= 4
+    ):
+
+        raw_line = values[3]
+        invert = raw_line.startswith(
+            "-"
+        )
+
+        return {
+            "mode": "gpiod",
+            "port": None,
+            "signal": None,
+            "invert": invert,
+            "gpio_chip": values[2],
+            "gpio_line": _to_int(
+                raw_line.lstrip(
+                    "-"
+                )
+            ),
+        }
+
+    if len(values) < 3:
+
+        return {
+            "mode": "none",
+            "port": None,
+            "signal": None,
+            "invert": False,
+            "gpio_chip": None,
+            "gpio_line": None,
         }
 
     signal = values[
@@ -457,6 +495,7 @@ def _ptt(
     )
 
     return {
+        "mode": "serial",
         "port":
             values[
                 1
@@ -469,6 +508,10 @@ def _ptt(
 
         "invert":
             invert,
+
+        "gpio_chip": None,
+
+        "gpio_line": None,
     }
 
 
@@ -1320,6 +1363,63 @@ def _list_serial_ports():
     ]
 
 
+def _list_gpio_chips():
+
+    chips = []
+
+    for path in sorted(
+        Path(
+            "/dev"
+        ).glob(
+            "gpiochip*"
+        )
+    ):
+
+        chips.append(
+            {
+                "value":
+                    str(
+                        path
+                    ),
+
+                "label":
+                    str(
+                        path
+                    ),
+            }
+        )
+
+    current = load_station_config().get(
+        "radio",
+        {}
+    ).get(
+        "gpio_chip"
+    )
+
+    if (
+        current
+        and all(
+            item[
+                "value"
+            ]
+            != current
+            for item in chips
+        )
+    ):
+
+        chips.append(
+            {
+                "value":
+                    current,
+
+                "label":
+                    current,
+            }
+        )
+
+    return chips
+
+
 def get_station_capabilities():
 
     return {
@@ -1328,6 +1428,15 @@ def get_station_capabilities():
 
         "serial_ports":
             _list_serial_ports(),
+
+        "gpio_chips":
+            _list_gpio_chips(),
+
+        "ptt_modes": [
+            "none",
+            "serial",
+            "gpiod",
+        ],
 
         "sample_rates":
             SAMPLE_RATES,
@@ -1579,6 +1688,11 @@ def load_station_config():
                     "PTT"
                 ),
 
+            "ptt_mode":
+                ptt[
+                    "mode"
+                ],
+
             "ptt_port":
                 ptt[
                     "port"
@@ -1592,6 +1706,16 @@ def load_station_config():
             "ptt_invert":
                 ptt[
                     "invert"
+                ],
+
+            "gpio_chip":
+                ptt[
+                    "gpio_chip"
+                ],
+
+            "gpio_line":
+                ptt[
+                    "gpio_line"
                 ],
 
             "dwait":
@@ -2299,6 +2423,28 @@ def _save_hardware(
             "Número de canais inválido."
         )
 
+    ptt_mode = str(
+        payload.get(
+            "ptt_mode"
+        )
+        or current[
+            "radio"
+        ].get(
+            "ptt_mode"
+        )
+        or "none"
+    ).strip().lower()
+
+    if ptt_mode not in (
+        "none",
+        "serial",
+        "gpiod",
+    ):
+
+        raise ValueError(
+            "Método de PTT inválido."
+        )
+
     serial_port = str(
         payload.get(
             "ptt_port"
@@ -2306,49 +2452,129 @@ def _save_hardware(
         or ""
     ).strip()
 
-    allowed_ports = {
-        item[
-            "value"
-        ]
-        for item in _list_serial_ports()
-    }
-
-    if (
-        serial_port not in allowed_ports
-        and
-        serial_port
-        != current[
-            "radio"
-        ][
-            "ptt_port"
-        ]
-    ):
-
-        raise ValueError(
-            "Porta serial de PTT não encontrada."
-        )
-
     signal = str(
         payload.get(
             "ptt_signal"
         )
-        or ""
+        or "DTR"
     ).strip().upper()
 
-    if signal not in (
-        "DTR",
-        "RTS",
-    ):
-
-        raise ValueError(
-            "Sinal de PTT inválido."
+    gpio_chip = str(
+        payload.get(
+            "gpio_chip"
         )
+        or ""
+    ).strip()
+
+    gpio_line_raw = payload.get(
+        "gpio_line"
+    )
+
+    gpio_line = None
 
     invert = bool(
         payload.get(
             "ptt_invert"
         )
     )
+
+    if ptt_mode == "serial":
+
+        allowed_ports = {
+            item[
+                "value"
+            ]
+            for item in _list_serial_ports()
+        }
+
+        if (
+            serial_port not in allowed_ports
+            and
+            serial_port
+            != current[
+                "radio"
+            ][
+                "ptt_port"
+            ]
+        ):
+
+            raise ValueError(
+                "Porta serial de PTT não encontrada."
+            )
+
+        if signal not in (
+            "DTR",
+            "RTS",
+        ):
+
+            raise ValueError(
+                "Sinal de PTT inválido."
+            )
+
+    elif ptt_mode == "gpiod":
+
+        if not gpio_chip:
+
+            raise ValueError(
+                "GPIO chip do PTT não informado."
+            )
+
+        if not gpio_chip.startswith(
+            "/"
+        ):
+
+            gpio_chip = (
+                "/dev/"
+                + gpio_chip
+            )
+
+        allowed_chips = {
+            item[
+                "value"
+            ]
+            for item in _list_gpio_chips()
+        }
+
+        current_chip = current[
+            "radio"
+        ].get(
+            "gpio_chip"
+        )
+
+        if (
+            gpio_chip not in allowed_chips
+            and gpio_chip
+            != current_chip
+        ):
+
+            raise ValueError(
+                "GPIO chip do PTT não encontrado."
+            )
+
+        try:
+
+            gpio_line = int(
+                gpio_line_raw
+            )
+
+        except (
+            TypeError,
+            ValueError,
+        ):
+
+            raise ValueError(
+                "Linha GPIO do PTT inválida."
+            )
+
+        if not (
+            0
+            <= gpio_line
+            <= 255
+        ):
+
+            raise ValueError(
+                "Linha GPIO do PTT fora do intervalo permitido."
+            )
 
     dwait = _number(
         payload,
@@ -2450,22 +2676,64 @@ def _save_hardware(
         ),
     )
 
-    ptt_signal = (
-        "-"
-        if invert
-        else ""
-    ) + signal
+    if ptt_mode == "serial":
 
-    _set_directive(
-        lines,
-        "PTT",
-        (
-            "PTT "
-            + serial_port
-            + " "
-            + ptt_signal
-        ),
-    )
+        ptt_signal = (
+            "-"
+            if invert
+            else ""
+        ) + signal
+
+        _set_directive(
+            lines,
+            "PTT",
+            (
+                "PTT "
+                + serial_port
+                + " "
+                + ptt_signal
+            ),
+        )
+
+    elif ptt_mode == "gpiod":
+
+        gpio_value = (
+            "-"
+            if invert
+            else ""
+        ) + str(
+            gpio_line
+        )
+
+        _set_directive(
+            lines,
+            "PTT",
+            (
+                "PTT GPIOD "
+                + gpio_chip
+                + " "
+                + gpio_value
+            ),
+        )
+
+    else:
+
+        current_ptt = (
+            current[
+                "radio"
+            ].get(
+                "ptt_raw"
+            )
+            or "PTT /dev/ttyUSB0 DTR"
+        )
+
+        _set_directive(
+            lines,
+            "PTT",
+            current_ptt,
+            enabled=False
+        )
+
 
     values = {
         "DWAIT":

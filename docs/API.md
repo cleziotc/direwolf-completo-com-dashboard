@@ -1,6 +1,6 @@
 # API do dashboard
 
-A API é servida pelo FastAPI na mesma porta do painel.
+A API FastAPI é servida na mesma porta do painel.
 
 Base típica:
 
@@ -14,14 +14,33 @@ http://IP:8088
 GET /api/status
 ```
 
-Retorna estado de:
+Retorna, entre outros:
 
-- estação;
-- hardware de áudio;
-- serial/PTT;
-- Direwolf;
-- APRS-IS;
-- timezone.
+- indicativo da estação;
+- rótulo/localização;
+- timezone;
+- estado do áudio;
+- estado do Direwolf;
+- estado APRS-IS;
+- método de PTT;
+- disponibilidade do PTT;
+- dados legados de serial quando aplicáveis.
+
+Campos de PTT relevantes:
+
+```text
+ptt_mode
+ptt_configured
+ptt_online
+ptt_label
+ptt_device
+gpio_chip
+gpio_line
+```
+
+`ptt_mode` pode ser `none`, `serial` ou `gpiod`.
+
+Os campos `serial_*` são mantidos para compatibilidade com clientes antigos.
 
 ## Estatísticas
 
@@ -53,16 +72,7 @@ Posições recentes para renderização.
 GET /api/overview
 ```
 
-Agrega:
-
-- taxa de pacotes;
-- séries por minuto;
-- top estações;
-- estações recentes;
-- WX;
-- TX;
-- uptime;
-- CPU/RAM.
+Agrega taxa de pacotes, séries por minuto, top estações, estações recentes, WX, TX, uptime e CPU/RAM.
 
 ## Áudio
 
@@ -80,9 +90,9 @@ GET /api/station-config/capabilities
 POST /api/station-config/{section}
 ```
 
-As alterações são limitadas a requisições oriundas de endereços privados/loopback pelo backend atual.
+A seção de hardware suporta PTT desabilitado, serial DTR/RTS e GPIOD.
 
-Não exponha essa API de escrita diretamente à Internet.
+As alterações de escrita são limitadas a endereços privados/loopback pelo backend atual. Não exponha a API de escrita diretamente à Internet.
 
 ## Mapas offline
 
@@ -101,10 +111,8 @@ GET /offline-map/{kind}/{zoom}/{x}/{y}.jpg
 
 ## Swagger/OpenAPI
 
-Como o FastAPI mantém OpenAPI, a documentação automática normalmente pode ser consultada em:
-
 ```text
 /docs
 ```
 
-em uma instalação padrão.
+O FastAPI mantém a especificação OpenAPI automaticamente.

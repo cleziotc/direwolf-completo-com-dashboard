@@ -227,7 +227,7 @@ button,input,select{font:inherit}
       <div class="status-group hardware-system">
         <div class="status-group-title">▣ &nbsp; Hardware / Sistema</div>
         <div class="status-card" id="st_audio"><span class="state-dot"></span><div class="status-card-copy"><div class="status-card-label">ÁUDIO USB</div><div class="status-card-main" id="st_audio_main">--</div><div class="status-card-sub" id="st_audio_sub">Aguardando...</div></div></div>
-        <div class="status-card" id="st_serial"><span class="state-dot"></span><div class="status-card-copy"><div class="status-card-label">SERIAL / PTT</div><div class="status-card-main" id="st_serial_main">--</div><div class="status-card-sub" id="st_serial_sub">Aguardando...</div></div></div>
+        <div class="status-card" id="st_serial"><span class="state-dot"></span><div class="status-card-copy"><div class="status-card-label" id="st_ptt_label">PTT</div><div class="status-card-main" id="st_serial_main">--</div><div class="status-card-sub" id="st_serial_sub">Aguardando...</div></div></div>
         <div class="status-card metric info" id="st_cpu"><span class="state-dot"></span><div class="status-card-copy"><div class="status-card-label">CPU</div><div class="status-card-main" id="st_cpu_main">--%</div><div class="status-card-sub">Uso do sistema</div></div><div class="metric-bar"><span id="st_cpu_bar"></span></div></div>
         <div class="status-card metric info" id="st_ram"><span class="state-dot"></span><div class="status-card-copy"><div class="status-card-label">RAM</div><div class="status-card-main" id="st_ram_main">--%</div><div class="status-card-sub" id="st_ram_sub">Uso da memória</div></div><div class="metric-bar"><span id="st_ram_bar"></span></div></div>
       </div>
@@ -837,7 +837,9 @@ async function updateStatusStats(){
     if(Number.isFinite(Number(sc.latitude)))IGATE.lat=Number(sc.latitude);
     if(Number.isFinite(Number(sc.longitude)))IGATE.lon=Number(sc.longitude);
     setStatusCard("st_audio",st.audio_online?"ok":"bad",st.audio_online?"OK":"OFFLINE",(st.audio_usb_id||"USB")+" • "+(st.audio_device||"--"),"USB "+(st.audio_usb_id||"")+" • "+(st.audio_device||""));
-    setStatusCard("st_serial",st.serial_ptt_online?"ok":"bad",st.serial_ptt_online?"OK":"OFFLINE",(st.serial_port||"--"),"USB "+(st.serial_usb_id||"")+" • "+(st.serial_port||""));
+    var pttConfigured=!!st.ptt_configured,pttOnline=!!st.ptt_online,pttMode=st.ptt_mode||"none";
+    document.getElementById("st_ptt_label").textContent=st.ptt_label||"PTT";
+    setStatusCard("st_serial",pttConfigured?(pttOnline?"ok":"bad"):"off",pttConfigured?(pttOnline?"OK":"OFFLINE"):"NÃO USADO",(st.ptt_device||"PTT não configurado"),pttMode==="gpiod"?"GPIO nativo via libgpiod":(pttMode==="serial"?"Interface serial DTR/RTS":"TX por PTT desabilitado"));
     setStatusCard("st_dw",st.direwolf_online?"ok":"bad",st.direwolf_online?"Em execução":"Parado","Serviço do modem");
     setStatusCard("st_is",st.aprs_is_online?"ok":"bad",st.aprs_is_online?"Conectado":"Desconectado",st.aprs_is_server||"--");
     var sys=ov.system||{};setMetricCard("st_cpu",sys.cpu_percent,"Uso do sistema");
@@ -845,7 +847,7 @@ async function updateStatusStats(){
     var txStatus=ov.tx||{},igateMode=txStatus.igate_mode||"OFF",igateConfigured=igateMode!=="OFF";
     var igateOperational=igateConfigured&&st.direwolf_online&&st.aprs_is_online;
     setStatusCard("st_igate",igateConfigured?(igateOperational?"ok":"bad"):"off",igateMode,igateMode==="RX + TX"?"RF → IS e IS → RF":(igateMode==="RX"?"RF → IS":(igateMode==="TX"?"IS → RF":"Desabilitado")));
-    var digiConfigured=!!txStatus.digipeater,digiOperational=digiConfigured&&st.direwolf_online&&st.audio_online&&st.serial_ptt_online;
+    var digiConfigured=!!txStatus.digipeater,digiOperational=digiConfigured&&st.direwolf_online&&st.audio_online&&st.ptt_online;
     setStatusCard("st_digi",digiConfigured?(digiOperational?"ok":"bad"):"off",digiConfigured?"Ligado":"Desligado",digiConfigured?"Repetição RF ativa":"Não será repetidor");
     document.getElementById("head_uptime").textContent=duration(ov.uptime&&ov.uptime.direwolf_seconds);
     document.getElementById("k_rf").textContent=Number(stats.rf_rx||0).toLocaleString("pt-BR");

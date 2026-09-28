@@ -70,7 +70,39 @@ AUDIO_CAPTURE_PATH = Path(f"/proc/asound/card{AUDIO_ALSA_CARD}/pcm{AUDIO_ALSA_DE
 
 SERIAL_USB_VENDOR_ID = os.environ.get("APRS_SERIAL_USB_VENDOR_ID", "").strip().lower()
 SERIAL_USB_PRODUCT_ID = os.environ.get("APRS_SERIAL_USB_PRODUCT_ID", "").strip().lower()
-SERIAL_PTT_PORT = Path(os.environ.get("APRS_SERIAL_PORT", "/dev/ttyUSB0").strip())
+SERIAL_PTT_PORT_TEXT = os.environ.get("APRS_SERIAL_PORT", "").strip()
+SERIAL_PTT_PORT = Path(SERIAL_PTT_PORT_TEXT) if SERIAL_PTT_PORT_TEXT else None
+
+PTT_MODE = os.environ.get("APRS_PTT_MODE", "").strip().lower()
+GPIO_PTT_CHIP = os.environ.get("APRS_GPIO_CHIP", "").strip()
+GPIO_PTT_LINE = os.environ.get("APRS_GPIO_LINE", "").strip()
+GPIO_PTT_INVERT = os.environ.get("APRS_GPIO_INVERT", "0").strip().lower() in ("1", "true", "yes", "sim")
+
+if not PTT_MODE:
+    try:
+        for _line in DIREWOLF_CONFIG_PATH.read_text(errors="replace").splitlines():
+            _line = _line.strip()
+            if not _line or _line.startswith("#") or not _line.upper().startswith("PTT "):
+                continue
+            _parts = _line.split()
+            if len(_parts) >= 4 and _parts[1].upper() == "GPIOD":
+                PTT_MODE = "gpiod"
+                GPIO_PTT_CHIP = GPIO_PTT_CHIP or _parts[2]
+                GPIO_PTT_LINE = GPIO_PTT_LINE or _parts[3].lstrip("-")
+                GPIO_PTT_INVERT = GPIO_PTT_INVERT or _parts[3].startswith("-")
+            elif len(_parts) >= 3:
+                PTT_MODE = "serial"
+                SERIAL_PTT_PORT_TEXT = SERIAL_PTT_PORT_TEXT or _parts[1]
+                SERIAL_PTT_PORT = Path(SERIAL_PTT_PORT_TEXT)
+            break
+    except OSError:
+        pass
+
+if not PTT_MODE:
+    PTT_MODE = "none"
+
+if GPIO_PTT_CHIP and not GPIO_PTT_CHIP.startswith("/"):
+    GPIO_PTT_CHIP = "/dev/" + GPIO_PTT_CHIP
 
 USB_SYSFS_ROOT = Path("/sys/bus/usb/devices")
 
@@ -661,29 +693,247 @@ def alsa_capture_present():
     )
 
 
+def get_current_ptt_config():
+
+    fallback = {
+        "mode":
+            PTT_MODE,
+
+        "serial_port":
+            SERIAL_PTT_PORT_TEXT,
+
+        "gpio_chip":
+            GPIO_PTT_CHIP,
+
+        "gpio_line":
+            GPIO_PTT_LINE,
+
+        "invert":
+            GPIO_PTT_INVERT,
+    }
+
+    try:
+
+        lines = DIREWOLF_CONFIG_PATH.read_text(
+            errors="replace"
+        ).splitlines()
+
+    except OSError:
+
+        return fallback
+
+    for raw in lines:
+
+        line = raw.strip()
+
+        if (
+            not line
+            or line.startswith("#")
+            or not line.upper().startswith(
+                "PTT "
+            )
+        ):
+
+            continue
+
+        parts = line.split()
+
+        if (
+            len(parts) >= 4
+            and parts[1].upper()
+            == "GPIOD"
+        ):
+
+            chip = parts[2]
+
+            if (
+                chip
+                and not chip.startswith(
+                    "/"
+                )
+            ):
+
+                chip = (
+                    "/dev/"
+                    + chip
+                )
+
+            raw_line = parts[3]
+
+            return {
+                "mode":
+                    "gpiod",
+
+                "serial_port":
+                    "",
+
+                "gpio_chip":
+                    chip,
+
+                "gpio_line":
+                    raw_line.lstrip(
+                        "-"
+                    ),
+
+                "invert":
+                    raw_line.startswith(
+                        "-"
+                    ),
+            }
+
+        if len(parts) >= 3:
+
+            return {
+                "mode":
+                    "serial",
+
+                "serial_port":
+                    parts[1],
+
+                "gpio_chip":
+                    "",
+
+                "gpio_line":
+                    "",
+
+                "invert":
+                    parts[2].startswith(
+                        "-"
+                    ),
+            }
+
+    return {
+        "mode":
+            "none",
+
+        "serial_port":
+            "",
+
+        "gpio_chip":
+            "",
+
+        "gpio_line":
+            "",
+
+        "invert":
+            False,
+    }
+
+
 def get_hardware_status():
+
+    ptt_config = (
+        get_current_ptt_config()
+    )
+
+    ptt_mode = ptt_config.get(
+        "mode",
+        "none"
+    )
+
+    serial_port_text = ptt_config.get(
+        "serial_port",
+        ""
+    )
+
+    serial_port = (
+        Path(
+            serial_port_text
+        )
+        if serial_port_text
+        else None
+    )
+
+    gpio_chip = ptt_config.get(
+        "gpio_chip",
+        ""
+    )
+
+    gpio_line = str(
+        ptt_config.get(
+            "gpio_line",
+            ""
+        )
+        or ""
+    )
 
     audio_usb_present = (
         usb_device_present(
             AUDIO_USB_VENDOR_ID,
             AUDIO_USB_PRODUCT_ID
         )
+        if (
+            AUDIO_USB_VENDOR_ID
+            and AUDIO_USB_PRODUCT_ID
+        )
+        else True
     )
 
     audio_capture_present = (
         alsa_capture_present()
     )
 
-    serial_usb_present = (
-        usb_device_present(
-            SERIAL_USB_VENDOR_ID,
-            SERIAL_USB_PRODUCT_ID
-        )
-    )
+    serial_usb_present = False
+    serial_port_present = False
+    gpio_chip_present = False
+    ptt_online = False
+    ptt_device = ""
+    ptt_label = "PTT"
 
-    serial_port_present = (
-        SERIAL_PTT_PORT.exists()
-    )
+    if ptt_mode == "serial":
+
+        serial_usb_present = (
+            usb_device_present(
+                SERIAL_USB_VENDOR_ID,
+                SERIAL_USB_PRODUCT_ID
+            )
+            if (
+                SERIAL_USB_VENDOR_ID
+                and SERIAL_USB_PRODUCT_ID
+            )
+            else bool(
+                serial_port
+                and serial_port.exists()
+            )
+        )
+
+        serial_port_present = bool(
+            serial_port
+            and serial_port.exists()
+        )
+
+        ptt_online = (
+            serial_usb_present
+            and serial_port_present
+        )
+
+        ptt_device = (
+            serial_port_text
+            or "serial não definida"
+        )
+
+        ptt_label = "SERIAL / PTT"
+
+    elif ptt_mode == "gpiod":
+
+        gpio_chip_present = bool(
+            gpio_chip
+            and Path(
+                gpio_chip
+            ).exists()
+        )
+
+        ptt_online = (
+            gpio_chip_present
+            and gpio_line.isdigit()
+        )
+
+        ptt_device = (
+            f"{gpio_chip or 'gpiochip'}"
+            f" • GPIO {gpio_line or '?'}"
+        )
+
+        ptt_label = "GPIO / PTT"
 
     return {
 
@@ -704,11 +954,44 @@ def get_hardware_status():
             (
                 f"{AUDIO_USB_VENDOR_ID}:"
                 f"{AUDIO_USB_PRODUCT_ID}"
+                if (
+                    AUDIO_USB_VENDOR_ID
+                    and AUDIO_USB_PRODUCT_ID
+                )
+                else "ALSA"
             ),
 
         "audio_device":
             AUDIO_ALSA_DEVICE,
 
+        "ptt_mode":
+            ptt_mode,
+
+        "ptt_configured":
+            ptt_mode in (
+                "serial",
+                "gpiod",
+            ),
+
+        "ptt_online":
+            ptt_online,
+
+        "ptt_label":
+            ptt_label,
+
+        "ptt_device":
+            ptt_device,
+
+        "gpio_chip_present":
+            gpio_chip_present,
+
+        "gpio_chip":
+            gpio_chip,
+
+        "gpio_line":
+            gpio_line,
+
+        # Campos legados mantidos para compatibilidade.
         "serial_usb_present":
             serial_usb_present,
 
@@ -716,22 +999,21 @@ def get_hardware_status():
             serial_port_present,
 
         "serial_ptt_online":
-            (
-                serial_usb_present
-                and
-                serial_port_present
-            ),
+            ptt_online,
 
         "serial_usb_id":
             (
                 f"{SERIAL_USB_VENDOR_ID}:"
                 f"{SERIAL_USB_PRODUCT_ID}"
+                if (
+                    SERIAL_USB_VENDOR_ID
+                    and SERIAL_USB_PRODUCT_ID
+                )
+                else ""
             ),
 
         "serial_port":
-            str(
-                SERIAL_PTT_PORT
-            ),
+            serial_port_text,
     }
 
 
@@ -1618,6 +1900,41 @@ def status():
         "audio_device":
             hardware[
                 "audio_device"
+            ],
+
+        "ptt_mode":
+            hardware[
+                "ptt_mode"
+            ],
+
+        "ptt_configured":
+            hardware[
+                "ptt_configured"
+            ],
+
+        "ptt_online":
+            hardware[
+                "ptt_online"
+            ],
+
+        "ptt_label":
+            hardware[
+                "ptt_label"
+            ],
+
+        "ptt_device":
+            hardware[
+                "ptt_device"
+            ],
+
+        "gpio_chip":
+            hardware[
+                "gpio_chip"
+            ],
+
+        "gpio_line":
+            hardware[
+                "gpio_line"
             ],
 
         "serial_ptt_online":
