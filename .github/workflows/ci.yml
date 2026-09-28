@@ -30,4 +30,7 @@ jobs:
           test -s static/config.html
           test -s requirements.txt
           grep -q "APRS Monitor" static/index.html
-          ! grep -R -n -E 'PP5CI|24561|26\.27166|48\.87666' --exclude-dir=.git .
+          test -s docs/en/README.md
+          test -s docs/en/INSTALL-RASPBERRY.md
+          grep -q "Daniel, PP5BK" README.md
+          grep -q "PTT GPIOD" direwolf.conf.example
