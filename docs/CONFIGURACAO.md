@@ -1,63 +1,56 @@
 # Configuração da estação
 
-## Página web
+## Origem da configuração-base
 
-Acesse:
+A configuração-base `direwolf.conf` que serviu de referência para este projeto foi originalmente programada pelo radioamador **Daniel, PP5BK**.
+
+O projeto público transforma essa base em um template parametrizado e em um assistente automatizado.
+
+## Página web
 
 ```text
 http://IP-DO-EQUIPAMENTO:8088/config
 ```
 
-A página organiza a configuração em blocos e grava somente diretivas conhecidas.
+A interface altera somente diretivas conhecidas e cria backup antes de gravar.
 
 ## Identificação e APRS-IS
 
-Principais campos:
+Campos principais:
 
-- `MYCALL`: indicativo e SSID da estação;
-- `IGLOGIN`: login e passcode;
-- `IGSERVER`: servidor e porta APRS-IS;
-- `IGFILTER`: filtro entregue pelo servidor.
+- `MYCALL`;
+- `IGLOGIN`;
+- `IGSERVER`;
+- `IGFILTER`.
 
-O passcode não é exibido de volta pela API. Se o campo de credencial ficar vazio durante uma alteração, a credencial existente é preservada.
+O passcode não é devolvido pela API. Se o campo de credencial for deixado em branco durante uma alteração, a credencial existente é preservada.
 
 ## Localização
 
-São configurados:
+A interface permite configurar latitude, longitude, altitude, altura da antena, ganho e potência.
 
-- latitude;
-- longitude;
-- altitude;
-- altura da antena;
-- ganho;
-- potência.
-
-As coordenadas também alimentam o centro do mapa e o filtro APRS-IS.
+As coordenadas alimentam os beacons e o filtro APRS-IS.
 
 ## Beacon
 
-O projeto suporta:
+- `PBEACON`: APRS-IS;
+- `OBEACON`: RF.
 
-- `PBEACON` para APRS-IS;
-- `OBEACON` para RF.
-
-Antes de habilitar beacon RF, confira frequência, intervalo e política local.
+Confira intervalo, símbolo, potência, path e política regional antes de ativar RF.
 
 ## Digipeater
 
-A diretiva `DIGIPEAT` determina se o Direwolf retransmite pacotes no canal RF.
-
-Uma configuração típica APRS pode usar:
+Exemplo:
 
 ```text
 DIGIPEAT 0 0 ^WIDE$ ^WIDE[1-2]-[1-2]$ TRACE
 ```
 
-Não copie paths indiscriminadamente para regiões com regras diferentes.
+Não copie regras de path indiscriminadamente para outra região.
 
 ## IS → RF
 
-Diretivas relacionadas:
+Diretivas típicas:
 
 ```text
 IGTXVIA 0 WIDE1-1
@@ -65,11 +58,9 @@ FILTER IG 0 1
 IGTXLIMIT 20 80
 ```
 
-`IGTXLIMIT` limita a quantidade de pacotes que podem sair por RF.
+`IGTXLIMIT` protege o canal contra tráfego excessivo.
 
 ## Áudio
-
-Exemplo:
 
 ```text
 ADEVICE plughw:0,0
@@ -79,7 +70,7 @@ CHANNEL 0
 MODEM 1200
 ```
 
-Confirme o card/device com:
+Descubra dispositivos com:
 
 ```bash
 arecord -l
@@ -87,33 +78,40 @@ arecord -l
 
 ## PTT serial
 
-Exemplo DTR:
+Exemplo:
 
 ```text
 PTT /dev/serial/by-id/usb-... DTR
 ```
 
-Exemplo RTS:
+Também são aceitos RTS e inversão com `-DTR` ou `-RTS`.
+
+## PTT GPIO/GPIOD
+
+No Raspberry:
 
 ```text
-PTT /dev/serial/by-id/usb-... RTS
+PTT GPIOD /dev/gpiochip0 25
 ```
 
-Algumas interfaces necessitam inversão:
+Invertido:
 
 ```text
-PTT /dev/serial/by-id/usb-... -DTR
+PTT GPIOD /dev/gpiochip0 -25
 ```
 
-ou:
+A página web permite escolher:
 
-```text
-PTT /dev/serial/by-id/usb-... -RTS
-```
+- PTT desabilitado;
+- serial DTR/RTS;
+- GPIO/GPIOD;
+- gpiochip;
+- linha GPIO;
+- lógica normal ou invertida.
 
 ## Temporizações
 
-As opções mais comuns são:
+Principais opções:
 
 - `DWAIT`;
 - `SLOTTIME`;
@@ -122,22 +120,26 @@ As opções mais comuns são:
 - `TXTAIL`;
 - `DEDUPE`.
 
-No Direwolf, `TXDELAY` é configurado em unidades próprias do programa; a página web apresenta o valor de forma mais amigável.
+A interface apresenta TXDELAY em milissegundos e converte para a unidade do Direwolf.
 
 ## Backup e rollback
 
-Cada gravação que realmente altera o `direwolf.conf` gera uma cópia em:
+Backups:
 
 ```text
 /home/aprs/aprs-dashboard/data/config-backups/
 ```
 
-Se a configuração nova impedir o Direwolf de subir, o backend tenta restaurar o backup anterior.
+Se uma configuração nova impedir o Direwolf de subir, o backend tenta restaurar o arquivo anterior.
 
-## Arquivo de runtime do dashboard
+## Runtime do dashboard
 
 ```text
 /home/aprs/.config/aprs-dashboard.env
 ```
 
-Esse arquivo guarda parâmetros de hardware e interface do dashboard, mas não precisa conter o passcode APRS-IS.
+Esse arquivo contém parâmetros locais de hardware e apresentação. O passcode APRS-IS permanece no `direwolf.conf`.
+
+## Exemplo público
+
+Veja `direwolf.conf.example`. Ele não contém passcode real nem coordenadas de uma estação específica.
