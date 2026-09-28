@@ -1,0 +1,41 @@
+# Ambiente Python
+venv/
+.venv/
+__pycache__/
+*.py[cod]
+
+# Banco de dados e arquivos SQLite
+data/
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+
+# Logs
+*.log
+logs/
+
+# Variáveis e segredos locais
+.env
+.env.*
+!.env.example
+
+# Backups locais
+backup/
+backups/
+*.bak
+
+# Arquivos temporários
+*.tmp
+*.swp
+*~
+
+# Sistema operacional / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Assets baixados pelo deploy para operacao offline
+static/vendor/
