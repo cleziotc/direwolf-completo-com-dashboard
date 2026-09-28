@@ -6,21 +6,27 @@ Primeira publicação comunitária.
 
 Inclui:
 
-- cópia funcional do dashboard desenvolvido em estação real;
-- parametrização de indicativo, timezone e hardware;
-- dashboard moderno;
+- dashboard APRS derivado de uma estação real;
+- parametrização de indicativo, timezone, coordenadas e hardware;
 - configuração web;
-- SQLite;
-- telemetria WX;
-- mapas online/offline;
-- iGate e digipeater;
-- IS → RF;
+- histórico SQLite;
+- telemetria APRS/WX;
+- mapas online e offline;
+- iGate RF → APRS-IS;
+- opção de APRS-IS → RF;
+- digipeater;
 - monitoramento de CPU/RAM;
-- console de áudio;
-- watchdog de áudio/serial;
+- console de áudio com VUs;
+- PTT serial DTR/RTS em Ubuntu/Linux;
+- PTT nativo GPIO/GPIOD em Raspberry Pi;
+- watchdog compatível com áudio, serial, GPIO e RX-only;
 - recuperação systemd;
-- atualizador com rollback;
-- instalador Ubuntu;
-- instalador Raspberry Pi OS;
-- documentação completa em português;
-- CI para validação de Python e Bash.
+- atualizador com health check e rollback;
+- instalador Ubuntu automatizado;
+- instalador Raspberry Pi OS automatizado;
+- TX desabilitado por padrão;
+- documentação detalhada em português;
+- documentação equivalente em inglês sob `docs/en/`;
+- CI de Python e Bash;
+- template público de `direwolf.conf` sem credenciais;
+- crédito a **Daniel, PP5BK**, pela programação da configuração-base `direwolf.conf`.
