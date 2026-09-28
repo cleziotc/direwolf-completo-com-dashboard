@@ -2718,9 +2718,20 @@ def _save_hardware(
 
     else:
 
-        _remove_directive(
+        current_ptt = (
+            current[
+                "radio"
+            ].get(
+                "ptt_raw"
+            )
+            or "PTT /dev/ttyUSB0 DTR"
+        )
+
+        _set_directive(
             lines,
-            "PTT"
+            "PTT",
+            current_ptt,
+            enabled=False
         )
 
 
