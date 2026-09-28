@@ -290,20 +290,20 @@ collect_station_config(){
 
   ask_yes_no APRS_ENABLE_TX "Ativar PTT, digipeater e IS→RF?" "${APRS_ENABLE_TX:-N}"
 
-  if [[ "$PLATFORM" == "raspberry" ]]; then
+  if [[ "$APRS_ENABLE_TX" != "1" ]]; then
+    APRS_PTT_MODE="none"
+  elif [[ "$PLATFORM" == "raspberry" ]]; then
     APRS_PTT_MODE="gpiod"
-    if [[ "$APRS_ENABLE_TX" == "1" ]]; then
-      ask APRS_GPIO_CHIP "GPIO chip para o PTT" "${APRS_GPIO_CHIP:-/dev/gpiochip0}"
-      [[ "$APRS_GPIO_CHIP" == /dev/* ]] || APRS_GPIO_CHIP="/dev/$APRS_GPIO_CHIP"
-      ask APRS_GPIO_LINE "GPIO BCM/linha para o PTT" "${APRS_GPIO_LINE:-25}"
-      [[ "$APRS_GPIO_LINE" =~ ^[0-9]+$ ]] || die "GPIO inválido: $APRS_GPIO_LINE"
-      ask_yes_no APRS_GPIO_INVERT "Inverter a lógica do GPIO de PTT?" "${APRS_GPIO_INVERT:-N}"
-      [[ -e "$APRS_GPIO_CHIP" ]] || log "AVISO: $APRS_GPIO_CHIP ainda não existe. Confirme com gpioinfo antes de transmitir."
-    fi
+    ask APRS_GPIO_CHIP "GPIO chip para o PTT" "${APRS_GPIO_CHIP:-/dev/gpiochip0}"
+    [[ "$APRS_GPIO_CHIP" == /dev/* ]] || APRS_GPIO_CHIP="/dev/$APRS_GPIO_CHIP"
+    ask APRS_GPIO_LINE "GPIO BCM/linha para o PTT" "${APRS_GPIO_LINE:-25}"
+    [[ "$APRS_GPIO_LINE" =~ ^[0-9]+$ ]] || die "GPIO inválido: $APRS_GPIO_LINE"
+    ask_yes_no APRS_GPIO_INVERT "Inverter a lógica do GPIO de PTT?" "${APRS_GPIO_INVERT:-N}"
+    [[ -e "$APRS_GPIO_CHIP" ]] || log "AVISO: $APRS_GPIO_CHIP ainda não existe. Confirme com gpioinfo antes de transmitir."
   else
     APRS_PTT_MODE="serial"
     APRS_PTT_SIGNAL="${APRS_PTT_SIGNAL:-DTR}"
-    if [[ "$APRS_ENABLE_TX" == "1" && -z "${APRS_SERIAL_PORT:-}" ]]; then
+    if [[ -z "${APRS_SERIAL_PORT:-}" ]]; then
       die "TX foi habilitado, mas nenhuma serial/PTT foi detectada. Defina APRS_SERIAL_PORT e execute novamente."
     fi
   fi
