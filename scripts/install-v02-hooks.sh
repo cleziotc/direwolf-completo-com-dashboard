@@ -2,14 +2,16 @@
 
 set -euo pipefail
 
-REPO="${APRS_DASHBOARD_DIR:-/home/aprs/aprs-dashboard}"
+SCRIPT_PATH="$(readlink -f "${BASH_SOURCE[0]}")"
+DEFAULT_REPO="$(cd "$(dirname "$SCRIPT_PATH")/.." && pwd)"
+REPO="${APRS_DASHBOARD_DIR:-$DEFAULT_REPO}"
 PYTHON="$REPO/venv/bin/python"
-SERVICE="aprs-dashboard"
+SERVICE="aprs-dashboard.service"
 
 cd "$REPO"
 
 if [[ "${EUID}" -eq 0 ]]; then
-    echo "Execute como usuario aprs, sem sudo."
+    echo "Execute como o usuario de servico APRS, sem sudo."
     exit 1
 fi
 
@@ -19,11 +21,12 @@ if [[ -n "$(git status --porcelain)" ]]; then
     exit 1
 fi
 
+export REPO
 "$PYTHON" - <<'PY'
 import os
 from pathlib import Path
 
-repo = Path(os.environ.get("APRS_DASHBOARD_DIR", "/home/aprs/aprs-dashboard"))
+repo = Path(os.environ.get("APRS_DASHBOARD_DIR", os.environ["REPO"]))
 app_path = repo / "app.py"
 index_path = repo / "static" / "index.html"
 
