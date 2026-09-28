@@ -1,7 +1,17 @@
 # ============================================================
 # EXEMPLO - Direwolf + APRS Dashboard
-# Copie para /home/aprs/direwolf.conf e personalize.
-# O instalador automatizado gera este arquivo para você.
+#
+# Configuração-base originalmente programada por Daniel, PP5BK.
+# Projeto/dashboard e automação: Clézio da Cunha Costa, PP5CI.
+#
+# Copie para /home/aprs/direwolf.conf e personalize, ou use um
+# dos instaladores automatizados deste repositório.
+#
+# IMPORTANTE:
+# - Não publique seu passcode APRS-IS.
+# - TX RF fica desabilitado neste exemplo.
+# - Ajuste frequência, potência, path e política de operação à
+#   sua licença e às regras da sua região.
 # ============================================================
 
 MYCALL N0CALL-10
@@ -24,14 +34,25 @@ MODEM 1200
 
 # ------------------------------------------------------------
 # TX / PTT - DESABILITADO POR PADRÃO
-# Descomente e ajuste somente se sua estação estiver autorizada
-# e o PTT tiver sido testado.
 # ------------------------------------------------------------
-#PTT /dev/ttyUSB0 DTR
+
+# Ubuntu/Linux com conversor serial:
+#PTT /dev/serial/by-id/SEU-DISPOSITIVO DTR
+#PTT /dev/serial/by-id/SEU-DISPOSITIVO RTS
+
+# Raspberry Pi com GPIO nativo via libgpiod:
+# GPIO 25, lógica normal:
+#PTT GPIOD /dev/gpiochip0 25
+# GPIO 25, lógica invertida:
+#PTT GPIOD /dev/gpiochip0 -25
+
+# Beacon e funções RF de transmissão
 #OBEACON SENDTO=0 OBJNAME=iGate SLOT=0:10 EVERY=15 SYMBOL=I# LAT=0 LONG=0 ALT=0 POWER=5 HEIGHT=10 GAIN=0 COMMENT="Direwolf DigiGate" COMPRESS=0 VIA=RFONLY
 #DIGIPEAT 0 0 ^WIDE$ ^WIDE[1-2]-[1-2]$ TRACE
 #IGTXVIA 0 WIDE1-1
 #FILTER IG 0 1
+
+# Temporizações / proteções
 #DWAIT 10
 #SLOTTIME 10
 #PERSIST 78
