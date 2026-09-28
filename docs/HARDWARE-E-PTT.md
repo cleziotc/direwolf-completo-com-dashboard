@@ -2,17 +2,9 @@
 
 ## Cadeia básica
 
-Uma estação típica utiliza:
-
-- transceptor VHF/UHF;
-- interface de áudio compatível com ALSA;
-- computador Ubuntu ou Raspberry Pi;
-- interface elétrica adequada para PTT;
-- rede para APRS-IS, quando iGate estiver habilitado.
+Uma estação típica utiliza transceptor VHF/UHF, interface de áudio compatível com ALSA, computador Ubuntu ou Raspberry Pi, interface elétrica de PTT e rede quando APRS-IS estiver habilitado.
 
 ## Áudio USB
-
-Verifique:
 
 ```bash
 lsusb
@@ -21,7 +13,7 @@ aplay -l
 cat /proc/asound/cards
 ```
 
-Exemplo de `ADEVICE`:
+Exemplo:
 
 ```text
 ADEVICE plughw:0,0
@@ -31,20 +23,11 @@ O instalador registra card/device e, quando possível, VID/PID USB.
 
 ## Nível de RX
 
-O VU RX usa o valor relativo publicado pelo Direwolf. Ele **não é um medidor calibrado em dBFS**.
-
-Serve para:
-
-- perceber ausência de áudio;
-- comparar ajustes;
-- observar atividade;
-- identificar níveis claramente inadequados.
-
-O ajuste final deve priorizar a qualidade de decodificação.
+O VU RX usa o valor relativo publicado pelo Direwolf. Ele **não é um medidor calibrado em dBFS**. Serve para perceber ausência de áudio, comparar ajustes, observar atividade e identificar níveis claramente inadequados.
 
 ## VU TX
 
-O dashboard não recebe a amplitude PCM real da transmissão. O VU TX representa **atividade de TX**, não uma medição absoluta de modulação.
+O dashboard não recebe a amplitude PCM real da transmissão. O VU TX representa atividade de TX, não uma medição absoluta de modulação.
 
 # PTT no Ubuntu/Linux
 
@@ -86,21 +69,11 @@ gpioinfo
 ls -l /dev/gpiochip*
 ```
 
-O chip pode variar conforme modelo/kernel.
+O chip pode variar conforme modelo e kernel.
 
 ## Interface elétrica
 
-Não ligue DTR/RTS ou GPIO diretamente ao PTT do rádio sem conhecer os níveis envolvidos.
-
-Use um estágio apropriado de chaveamento e confira:
-
-- tensão;
-- corrente;
-- polaridade;
-- nível lógico;
-- isolamento;
-- terra;
-- retorno de RF.
+Não ligue DTR/RTS ou GPIO diretamente ao PTT do rádio sem conhecer os níveis envolvidos. Use um estágio apropriado de chaveamento e confira tensão, corrente, polaridade, nível lógico, isolamento, terra e retorno de RF.
 
 ## EMI / RF
 
@@ -114,16 +87,7 @@ Device not responding to setup address
 
 indicam falha abaixo do Direwolf.
 
-Investigue:
-
-- mau contato;
-- cabo USB;
-- porta USB;
-- alimentação;
-- EMI/RF;
-- loops de terra;
-- conversor;
-- controlador USB.
+Investigue mau contato, cabo USB, porta USB, alimentação, EMI/RF, loops de terra, conversor e controlador USB.
 
 Medidas úteis:
 
