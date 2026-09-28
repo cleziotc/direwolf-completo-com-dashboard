@@ -1,4 +1,4 @@
-# Direwolf completo com Dashboard
+# Direwolf completo com DASHBOARD
 
 [Português](#português) • [English](#english)
 
