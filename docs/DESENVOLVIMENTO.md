@@ -70,7 +70,9 @@ Evite hardcode de:
 - timezone;
 - VID/PID;
 - card ALSA;
-- serial.
+- serial;
+- gpiochip;
+- linha GPIO.
 
 Esses dados pertencem ao ambiente local e devem vir de configuração.
 
@@ -83,5 +85,6 @@ O projeto privilegia:
 - rollback;
 - observabilidade;
 - proteção contra perda de configuração;
-- documentação em português;
+- documentação principal em português;
+- documentação equivalente em inglês sob `docs/en/`;
 - compartilhamento com a comunidade radioamadora.
