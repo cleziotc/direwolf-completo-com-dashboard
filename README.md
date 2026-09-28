@@ -3,7 +3,8 @@
 [Português](#português) • [English](#english)
 
 ---
-https://github.com/cleziotc/direwolf-completo-com-dashboard/blob/main/aprs.png
+<img width="1902" height="1188" alt="image" src="https://github.com/user-attachments/assets/06476445-670c-49d0-ab65-30b2039ef201" />
+
 
 
 # Português
