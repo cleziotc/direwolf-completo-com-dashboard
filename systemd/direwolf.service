@@ -1,0 +1,18 @@
+[Unit]
+Description=Direwolf APRS iGate / Digipeater
+After=network-online.target sound.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=aprs
+Group=aprs
+SupplementaryGroups=audio dialout
+WorkingDirectory=/home/aprs
+EnvironmentFile=-/home/aprs/.config/aprs-dashboard.env
+ExecStart=/usr/local/bin/direwolf -c /home/aprs/direwolf.conf -d i -T "%%Y-%%m-%%d %%H:%%M:%%S"
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
