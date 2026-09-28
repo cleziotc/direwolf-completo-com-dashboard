@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+jobs:
+  validar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Python syntax
+        run: |
+          python3 -m py_compile app.py database.py dashboard_extensions.py audio_control.py station_config.py offline_maps.py scripts/direwolf-hardware-watchdog.py
+
+      - name: Bash syntax
+        run: |
+          bash -n install-ubuntu.sh
+          bash -n install-raspberry.sh
+          bash -n scripts/aprs-update.sh
+          bash -n scripts/install-common.sh
+          bash -n scripts/install-v02-hooks.sh
+
+      - name: Verificações do pacote público
+        run: |
+          test -s static/index.html
+          test -s static/config.html
+          test -s requirements.txt
+          grep -q "APRS Monitor" static/index.html
+          ! grep -R -n -E 'PP5CI|24561|26\.27166|48\.87666' --exclude-dir=.git .
