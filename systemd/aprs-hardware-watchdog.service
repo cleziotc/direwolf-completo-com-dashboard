@@ -1,0 +1,14 @@
+[Unit]
+Description=APRS hardware watchdog for Direwolf
+After=systemd-udevd.service local-fs.target
+Wants=systemd-udevd.service
+
+[Service]
+Type=simple
+EnvironmentFile=-/home/aprs/.config/aprs-dashboard.env
+ExecStart=/usr/bin/python3 /home/aprs/aprs-dashboard/scripts/direwolf-hardware-watchdog.py
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
