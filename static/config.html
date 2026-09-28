@@ -209,16 +209,33 @@ select.cfg{cursor:pointer}.unit-row{display:grid;grid-template-columns:1fr auto}
       <div class="help"><strong>1 = mono</strong>, suficiente para uma única interface de rádio. Use 2 apenas quando realmente precisar de dois canais no mesmo dispositivo.</div>
     </div>
     <div class="field">
+      <label>Método de PTT</label>
+      <select class="cfg" id="ptt_mode">
+        <option value="none">Desabilitado</option>
+        <option value="serial">Serial DTR/RTS</option>
+        <option value="gpiod">GPIO nativo (GPIOD)</option>
+      </select>
+      <div class="help">Ubuntu normalmente usa serial DTR/RTS. No Raspberry Pi, prefira GPIO nativo via GPIOD.</div>
+    </div>
+    <div class="field ptt-serial">
       <label>Porta serial do PTT</label><select class="cfg" id="ptt_port"></select>
       <div class="help">Porta USB/serial usada para chavear o transmissor.</div>
     </div>
-    <div class="field">
+    <div class="field ptt-serial">
       <label>Linha de controle PTT</label><select class="cfg" id="ptt_signal"><option value="DTR">DTR</option><option value="RTS">RTS</option></select>
       <div class="help">Escolha qual linha de modem da porta serial aciona o transistor/interface de PTT.</div>
     </div>
+    <div class="field ptt-gpio">
+      <label>GPIO chip</label><select class="cfg" id="gpio_chip"></select>
+      <div class="help">Dispositivo libgpiod, normalmente <strong>/dev/gpiochip0</strong>. Confirme com <code>gpioinfo</code>.</div>
+    </div>
+    <div class="field ptt-gpio">
+      <label>Linha GPIO do PTT</label><input class="cfg" id="gpio_line" type="number" min="0" max="255" value="25">
+      <div class="help">Número da linha/BCM usada para PTT. O instalador Raspberry usa GPIO 25 como padrão.</div>
+    </div>
     <div class="field">
-      <label>Lógica do PTT</label><label class="checkline"><input id="ptt_invert" type="checkbox"> Inverter lógica DTR/RTS</label>
-      <div class="help">Ative se sua interface chavear ao contrário. O Direwolf representa isso colocando <strong>-</strong> antes de DTR ou RTS.</div>
+      <label>Lógica do PTT</label><label class="checkline"><input id="ptt_invert" type="checkbox"> Inverter lógica</label>
+      <div class="help">Na serial, inverte DTR/RTS. No GPIOD, o Direwolf representa a inversão com linha GPIO negativa.</div>
     </div>
 
     <div class="field">
@@ -469,6 +486,11 @@ function setupOfflineControls(radius){
 function viaHelp(){
   var v=q("via").value,item=(caps.via_options||[]).find(function(x){return x.value===v});q("via_help").textContent=item?item.help:"";
 }
+function refreshPttFields(){
+  var mode=q("ptt_mode").value||"none";
+  document.querySelectorAll(".ptt-serial").forEach(function(el){el.style.display=mode==="serial"?"":"none"});
+  document.querySelectorAll(".ptt-gpio").forEach(function(el){el.style.display=mode==="gpiod"?"":"none"});
+}
 function loadIntoForm(d){
   cfg=d;var s=d.station||{},a=d.aprs_is||{},b=d.beacon_is||{},rf=d.beacon_rf||{},ig=d.igate_tx||{},r=d.radio||{};
   setv("call",s.callsign);setv("server",a.server);setv("port",a.port);q("passcode").value="";
@@ -476,7 +498,8 @@ function loadIntoForm(d){
   setv("lat",s.latitude);setv("lon",s.longitude);setv("alt",s.altitude_m);setv("height",s.antenna_height_m);setv("gain",s.antenna_gain_dbi);setv("power",s.power_w);
   setv("comment",b.comment);setv("every",b.every_minutes);setv("slot",b.slot);q("compress").value=String(b.compress==null?0:b.compress);selectSymbol(b.symbol||"I#");
   q("digi").checked=!!(d.digipeater&&d.digipeater.enabled);q("igtx").checked=!!ig.enabled;fillSelect(q("via"),caps.via_options,ig.via);viaHelp();setv("limit1",ig.limit_1m);setv("limit5",ig.limit_5m);
-  fillSelect(q("adev"),caps.audio_devices,r.audio_device);fillSelect(q("rate"),caps.sample_rates,r.sample_rate);fillSelect(q("channels"),caps.channels,r.audio_channels);fillSelect(q("ptt_port"),caps.serial_ports,r.ptt_port);q("ptt_signal").value=r.ptt_signal||"DTR";q("ptt_invert").checked=!!r.ptt_invert;
+  fillSelect(q("adev"),caps.audio_devices,r.audio_device);fillSelect(q("rate"),caps.sample_rates,r.sample_rate);fillSelect(q("channels"),caps.channels,r.audio_channels);
+  q("ptt_mode").value=r.ptt_mode||"none";fillSelect(q("ptt_port"),caps.serial_ports,r.ptt_port);q("ptt_signal").value=r.ptt_signal||"DTR";fillSelect(q("gpio_chip"),caps.gpio_chips,r.gpio_chip);setv("gpio_line",r.gpio_line==null?25:r.gpio_line);q("ptt_invert").checked=!!r.ptt_invert;refreshPttFields();
   setv("dwait",r.dwait);setv("slottime",r.slottime);setv("persist",r.persist);setv("txtail",r.txtail);setv("dedupe",r.dedupe);q("txdelay").value=r.txdelay_ms||0;q("txdelay_value").textContent=(r.txdelay_ms||0)+" ms";
   q("sum_call").textContent=s.callsign||"N0CALL";document.title=(s.callsign||"Direwolf")+" • Configuração";q("sum_meta").textContent=(s.latitude??"--")+", "+(s.longitude??"--")+" • antena "+(s.antenna_height_m??"--")+" m";
   status("s_is",!!a.server,a.server||"NÃO CONFIGURADO");status("s_digi",!!(d.digipeater&&d.digipeater.enabled),(d.digipeater&&d.digipeater.enabled)?"ATIVO":"DESATIVADO");status("s_igtx",!!ig.enabled,ig.enabled?"ATIVO":"DESATIVADO");status("s_beacon",!!rf.enabled,rf.enabled?"ATIVO":"DESATIVADO");
@@ -495,7 +518,7 @@ async function saveSection(section,button){
   if(section==="location")payload={latitude:Number(q("lat").value),longitude:Number(q("lon").value),altitude_m:Number(q("alt").value),antenna_height_m:Number(q("height").value),antenna_gain_dbi:Number(q("gain").value),power_w:Number(q("power").value)};
   if(section==="beacon")payload={comment:q("comment").value,symbol:selectedSymbol,every_minutes:Number(q("every").value),slot:q("slot").value,compress:q("compress").value==="1"};
   if(section==="digipeater")payload={digipeater_enabled:q("digi").checked,igate_enabled:q("igtx").checked,via:q("via").value,limit_1m:Number(q("limit1").value),limit_5m:Number(q("limit5").value)};
-  if(section==="hardware")payload={audio_device:q("adev").value,sample_rate:Number(q("rate").value),audio_channels:Number(q("channels").value),ptt_port:q("ptt_port").value,ptt_signal:q("ptt_signal").value,ptt_invert:q("ptt_invert").checked,dwait:Number(q("dwait").value),slottime:Number(q("slottime").value),persist:q("persist").value,txdelay_ms:Number(q("txdelay").value),txtail:Number(q("txtail").value),dedupe:Number(q("dedupe").value)};
+  if(section==="hardware")payload={audio_device:q("adev").value,sample_rate:Number(q("rate").value),audio_channels:Number(q("channels").value),ptt_mode:q("ptt_mode").value,ptt_port:q("ptt_port").value,ptt_signal:q("ptt_signal").value,gpio_chip:q("gpio_chip").value,gpio_line:Number(q("gpio_line").value),ptt_invert:q("ptt_invert").checked,dwait:Number(q("dwait").value),slottime:Number(q("slottime").value),persist:q("persist").value,txdelay_ms:Number(q("txdelay").value),txtail:Number(q("txtail").value),dedupe:Number(q("dedupe").value)};
   button.disabled=true;var old=button.textContent;button.textContent="Salvando...";
   try{
     var result=await api("/api/station-config/"+section,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
@@ -509,7 +532,7 @@ document.querySelectorAll("[data-save]").forEach(function(btn){btn.onclick=funct
 q("radius_range").oninput=function(){q("radius").value=this.value;updateFilterPreview()};q("radius").oninput=function(){q("radius_range").value=Math.max(1,Math.min(500,Number(this.value)||1));updateFilterPreview()};
 function syncMapFromFields(){var lat=Number(q("lat").value),lon=Number(q("lon").value);if(Number.isFinite(lat)&&Number.isFinite(lon)&&mapMarker){var ll=L.latLng(lat,lon);mapMarker.setLatLng(ll);filterCircle.setLatLng(ll)}updateFilterPreview()}
 q("lat").oninput=syncMapFromFields;
-q("lon").oninput=syncMapFromFields;q("via").onchange=viaHelp;q("txdelay").oninput=function(){q("txdelay_value").textContent=this.value+" ms"};
+q("lon").oninput=syncMapFromFields;q("via").onchange=viaHelp;q("ptt_mode").onchange=refreshPttFields;q("txdelay").oninput=function(){q("txdelay_value").textContent=this.value+" ms"};
 q("symbol_btn").onclick=function(){q("symbol_modal").classList.add("show")};q("symbol_close").onclick=function(){q("symbol_modal").classList.remove("show")};q("symbol_modal").onclick=function(e){if(e.target===this)this.classList.remove("show")};
 
 function initVu(id){var b=q(id);for(var i=0;i<32;i++){var s=document.createElement("span");s.className="seg";if(i>=23)s.classList.add("mid");if(i>=29)s.classList.add("hot");b.appendChild(s)}}
