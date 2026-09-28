@@ -2,25 +2,25 @@
 
 ## Visão geral
 
-A solução é dividida em quatro camadas independentes:
+A solução é dividida em quatro camadas:
 
-1. **RF e hardware** — rádio, interface de áudio e PTT;
-2. **Direwolf** — modem/TNC, digipeater e iGate;
-3. **coletor/API** — aplicação Python/FastAPI;
-4. **interface web** — monitor e configuração.
+1. RF e hardware;
+2. Direwolf;
+3. coletor/API Python;
+4. interface web.
 
-Essa separação é proposital. Se o navegador for fechado, o Direwolf continua funcionando. Se o dashboard reiniciar, ele recupera do journal os eventos ainda não gravados no SQLite.
+O navegador não participa da operação crítica. Fechar o dashboard não interrompe o Direwolf.
 
 ## Fluxo RX
 
 ```text
-Rádio → áudio USB → ALSA → Direwolf → pacote AX.25/APRS
-                                  │
-                                  ├→ APRS-IS
-                                  └→ journal do systemd
+Rádio → áudio → ALSA → Direwolf → AX.25/APRS
+                              │
+                              ├→ APRS-IS
+                              └→ journal systemd
 ```
 
-O dashboard acompanha `journalctl -u direwolf`. Cada linha relevante é convertida para um evento estruturado, como:
+O dashboard acompanha `journalctl -u direwolf` e transforma linhas em eventos como:
 
 - `RF_RX`;
 - `RF_TO_IS`;
@@ -29,35 +29,36 @@ O dashboard acompanha `journalctl -u direwolf`. Cada linha relevante é converti
 - `DUPLICATE_DROP`;
 - `AUDIO_LEVEL`.
 
-Quando possível, o pacote é também interpretado pelo `aprslib` para extrair posição, símbolo, velocidade, curso, altitude, comentário e telemetria meteorológica.
+O `aprslib` é usado para extrair posição, símbolo, velocidade, curso, altitude, comentário e WX quando disponível.
 
 ## Fluxo TX
 
-Quando TX é habilitado:
-
 ```text
-APRS-IS → Direwolf → filtro → fila de TX → áudio → rádio
-                                      │
-                                      └→ PTT por DTR/RTS
+APRS-IS → Direwolf → filtros/proteções → áudio → rádio
+                                         │
+                                         └→ PTT
 ```
 
-O dashboard não gera PTT diretamente. Ele configura o Direwolf. O Direwolf é a fonte de verdade para transmissão.
+PTT pode ser:
 
-## Banco de dados
+- **Ubuntu/Linux:** serial DTR/RTS;
+- **Raspberry Pi:** GPIO via GPIOD.
 
-O arquivo `database.py` usa SQLite em:
+O dashboard não chaveia PTT diretamente; ele configura o Direwolf.
+
+## SQLite
+
+Banco:
 
 ```text
 /home/aprs/aprs-dashboard/data/aprs.db
 ```
 
-São mantidos eventos de recepção, encaminhamento, transmissão, drops e telemetria. O banco usa WAL para melhorar a concorrência entre coleta e consultas.
-
-O reset visual de KPIs diários não apaga o histórico.
+O banco usa WAL e mantém o histórico mesmo quando KPIs diários são reiniciados visualmente.
 
 ## API
 
-O FastAPI expõe, entre outros:
+Principais rotas:
 
 - `/api/status`;
 - `/api/stats`;
@@ -68,43 +69,56 @@ O FastAPI expõe, entre outros:
 - `/api/station-config`;
 - `/api/offline-map/status`.
 
-A interface web consome essas rotas periodicamente.
-
 ## Configuração
 
-O arquivo principal é:
+Arquivo principal:
 
 ```text
 /home/aprs/direwolf.conf
 ```
 
-A página `/config` lê e altera seções controladas desse arquivo. Antes de gravar, é criado um backup em `data/config-backups/`.
-
-O passcode do APRS-IS não é retornado pela API.
+A página `/config` lê e grava seções controladas. O passcode APRS-IS não é retornado ao navegador.
 
 ## Watchdog
 
-O serviço `aprs-hardware-watchdog` lê `ADEVICE` e `PTT` do `direwolf.conf`. Ele observa a presença da placa de captura e da serial.
+O watchdog interpreta `ADEVICE` e `PTT` do próprio `direwolf.conf`.
 
-Quando um hardware que estava ausente reaparece e todos os dispositivos requeridos estão prontos, o watchdog reinicia o Direwolf. Isso resolve o caso comum em que um USB cai e volta, mas o processo não recupera a interface sozinho.
+Ele suporta:
 
-Além disso, um drop-in systemd mantém `Restart=always` para o Direwolf.
+- captura ALSA;
+- PTT serial;
+- PTT GPIOD;
+- ausência de PTT em RX-only.
+
+Quando hardware necessário reaparece, o Direwolf é reiniciado após tempo de estabilização.
+
+## systemd
+
+Serviços:
+
+```text
+direwolf.service
+aprs-dashboard.service
+aprs-hardware-watchdog.service
+```
+
+Um drop-in adiciona política de recuperação ao Direwolf.
 
 ## Mapas
 
-A interface usa Leaflet. Há duas categorias:
+Leaflet é instalado localmente. A interface pode usar mapas online e pacotes offline em:
 
-- mapas online para uso normal;
-- pacotes locais em `data/offline-maps/`.
+```text
+data/offline-maps/
+```
 
-O cache offline é organizado por camada, zoom, X e Y.
+## Princípios do projeto
 
-## Princípios de projeto
-
-- configuração local fora do Git;
+- parâmetros locais fora do Git;
 - nenhum passcode no repositório;
 - TX desabilitado por padrão;
-- serviços separados;
-- rollback em atualização;
-- recuperação após falha de hardware;
-- compatibilidade com VM, máquina física e Raspberry Pi.
+- separação entre modem e dashboard;
+- recuperação automática;
+- rollback de atualização;
+- compatibilidade com VM, bare metal e Raspberry Pi;
+- PTT nativo no Raspberry para reduzir hardware desnecessário.
