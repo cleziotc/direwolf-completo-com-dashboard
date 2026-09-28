@@ -22,7 +22,7 @@ sudo apt full-upgrade -y
 sudo reboot
 ```
 
-Depois conecte a interface de áudio USB e confirme:
+Confirme a interface de áudio:
 
 ```bash
 arecord -l
@@ -30,7 +30,7 @@ aplay -l
 cat /proc/asound/cards
 ```
 
-Para PTT GPIO, confira os chips disponíveis:
+Confira os GPIO chips:
 
 ```bash
 gpioinfo
@@ -43,29 +43,15 @@ ls -l /dev/gpiochip*
 curl -fsSL https://raw.githubusercontent.com/cleziotc/direwolf-completo-com-dashboard/main/install-raspberry.sh | sudo bash
 ```
 
-O instalador:
-
-1. instala compiladores, ALSA, libudev, Avahi, Python e **libgpiod**;
-2. cria o usuário `aprs`;
-3. adiciona o usuário aos grupos necessários, inclusive `gpio` quando disponível;
-4. compila o Direwolf oficial;
-5. instala o dashboard;
-6. detecta a placa ALSA;
-7. prepara PTT GPIOD;
-8. pergunta os dados da estação;
-9. gera o `direwolf.conf`;
-10. instala os serviços;
-11. valida a API.
+O instalador instala as dependências, cria o usuário `aprs`, compila o Direwolf oficial, instala o dashboard, detecta ALSA, prepara GPIOD, gera a configuração, instala systemd/watchdog e valida a API.
 
 ## PTT por GPIO
 
-A forma moderna utilizada pelo projeto é:
+Forma padrão:
 
 ```text
 PTT GPIOD /dev/gpiochip0 25
 ```
-
-O número final é a linha GPIO. O padrão do instalador é GPIO 25.
 
 Para lógica invertida:
 
@@ -73,45 +59,28 @@ Para lógica invertida:
 PTT GPIOD /dev/gpiochip0 -25
 ```
 
-O sinal negativo é interpretado pelo Direwolf como inversão do PTT.
+O padrão inicial do instalador é GPIO 25. O sinal negativo é interpretado pelo Direwolf como inversão.
 
-### Por que não usar serial no Raspberry?
+## Por que não usar serial no Raspberry?
 
-O Raspberry já possui GPIO no conector de expansão. Adicionar um conversor USB/serial somente para produzir DTR ou RTS aumenta:
-
-- número de cabos;
-- consumo USB;
-- pontos de falha;
-- risco de mudança de `ttyUSB0`;
-- necessidade de watchdog para uma interface que não é necessária.
-
-Por isso o instalador Raspberry usa GPIO nativo como padrão.
+O Raspberry já possui GPIO no conector de expansão. Adicionar um conversor USB/serial apenas para obter DTR/RTS aumenta cabos, consumo USB e pontos de falha. Por isso o instalador Raspberry usa GPIO nativo como padrão.
 
 ## Escolha do gpiochip
 
-Dependendo do modelo e do kernel, o chip responsável pelo header pode não ter sempre o mesmo número.
+O número do gpiochip pode variar conforme modelo e kernel.
 
 Confira:
 
 ```bash
 gpioinfo
 for c in /sys/class/gpio/gpiochip*; do
-  echo "$c  label=$(cat "$c/label" 2>/dev/null)  ngpio=$(cat "$c/ngpio" 2>/dev/null)"
+  echo "$c label=$(cat "$c/label" 2>/dev/null) ngpio=$(cat "$c/ngpio" 2>/dev/null)"
 done
 ```
 
-O instalador tenta localizar um chip `pinctrl` adequado. Se necessário, informe manualmente:
-
-```text
-/dev/gpiochip0
-/dev/gpiochip4
-```
-
-Use a saída real do seu Raspberry como referência.
+O instalador tenta localizar automaticamente um chip `pinctrl`. Se necessário, informe manualmente `/dev/gpiochip0`, `/dev/gpiochip4` ou o dispositivo correto do seu sistema.
 
 ## Instalação não interativa
-
-Exemplo:
 
 ```bash
 sudo env \
@@ -133,37 +102,19 @@ sudo env \
   bash install-raspberry.sh
 ```
 
-Para RX-only, use:
-
-```text
-APRS_ENABLE_TX=N
-```
-
-Nesse caso nenhuma linha PTT é exigida.
+Para RX-only, use `APRS_ENABLE_TX=N`.
 
 ## Raspberry Pi Zero
 
-O instalador reduz automaticamente o paralelismo da compilação quando detecta pouca RAM.
-
-Recomendações:
-
-- Raspberry Pi OS Lite;
-- cartão com espaço livre;
-- nenhuma compilação pesada paralela;
-- raio de mapas offline conservador;
-- fonte de alimentação estável.
+Em pouca RAM, o instalador reduz automaticamente o paralelismo de compilação. Prefira Raspberry Pi OS Lite, espaço livre no cartão e raio de mapas offline conservador.
 
 ## Alimentação
-
-Problemas de alimentação podem causar quedas USB e comportamento instável.
-
-Quando disponível:
 
 ```bash
 vcgencmd get_throttled
 ```
 
-`0x0` indica ausência de flags atuais ou históricas de undervoltage/throttling.
+Quando disponível, `0x0` indica ausência de flags atuais ou históricas de undervoltage/throttling.
 
 ## Teste após instalação
 
@@ -171,39 +122,14 @@ vcgencmd get_throttled
 systemctl status direwolf --no-pager
 systemctl status aprs-dashboard --no-pager
 systemctl status aprs-hardware-watchdog --no-pager
-```
-
-Confira a configuração de PTT:
-
-```bash
 grep '^PTT' /home/aprs/direwolf.conf
-```
-
-Confira logs:
-
-```bash
 journalctl -u direwolf -f
 ```
 
 ## Interface elétrica do PTT
 
-O GPIO não deve ser conectado indiscriminadamente ao PTT do rádio.
-
-Utilize circuito compatível, por exemplo:
-
-- transistor;
-- MOSFET adequado;
-- optoacoplador;
-- interface isolada.
-
-Observe tensão, corrente, polaridade, aterramento e retorno de RF.
+O GPIO não deve ser conectado indiscriminadamente ao PTT do rádio. Use transistor, MOSFET, optoacoplador ou interface apropriada. Verifique tensão, corrente, polaridade, aterramento e retorno de RF.
 
 ## Operação 24/7
 
-```bash
-systemctl is-enabled direwolf
-systemctl is-enabled aprs-dashboard
-systemctl is-enabled aprs-hardware-watchdog
-```
-
-O watchdog considera o `gpiochip` como recurso de PTT. Se o sistema for RX-only, PTT não é requisito para manter o Direwolf ativo.
+O watchdog entende `PTT GPIOD` e observa o gpiochip. Em RX-only, PTT não é requisito.
